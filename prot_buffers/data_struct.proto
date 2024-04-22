@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package dataStruct;
+
+service FileService {
+  rpc RequestFile(FileRequest) returns (stream FileResponse);
+}
+
+message FileRequest {
+  string filename = 1;
+}
+
+message FileResponse {
+  bytes data = 1;
+}
