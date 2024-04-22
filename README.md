@@ -6,7 +6,7 @@
 ## How to run
         1. ```
         python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. data_struct.proto
-        ````  - to compile proto file into py code.
+        ```  - to compile proto file into py code.
         2. Replace file paths in both server.py and client.py.
         3. Start server and run the client.
 
