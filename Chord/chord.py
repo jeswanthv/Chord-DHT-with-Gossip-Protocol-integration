@@ -1,0 +1,49 @@
+from virtual_node import Virtual_node
+import logging
+from concurrent import futures
+import time
+import click
+import grpc
+import server_pb2_grpc
+# import chaosmonkey_pb2_grpc
+import csv
+import logging
+import logging.handlers
+import sys
+import os
+import socket
+import json
+
+# @click.command()
+# @click.argument('address', default='0.0.0.0:7000')
+# @click.option('--id', type=int, default=0)
+# @click.option('--join', type=str)
+# @click.option('--server_config_file', default='config.json')
+def start_server(address, id, join, server_config_file):
+    # 1024*1024 = 10MB is the size
+    inputStream = open(server_config_file)
+    print(inputStream)
+    server_config = json.load(inputStream)
+    server_name = f'{id}-{address.replace(":", "-")}'
+
+    logger = logging.getLogger('Chord')
+    logger.setLevel(logging.INFO)
+
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=20))
+    virtual_node = Virtual_node(id, address, join, server_config)
+    server_pb2_grpc.add_ServerServicer_to_server(virtual_node, server)
+    # chaosmonkey_pb2_grpc.add_ChaosMonkeyServicer_to_server(virtual_node.cmserver, server)
+    server.add_insecure_port(address)
+    server.start()
+    virtual_node.run()
+    logger.info(f'{socket.gethostname()}')
+    logger.info(f'Server [{server_name}] listening {address}')
+    try:
+        while True:
+            time.sleep(24*60*60)
+    except KeyboardInterrupt:
+        server.stop(0)
+
+
+if __name__ == "__main__":
+    start_server('127.0.0.1:7001', 0, '127.0.0.1:7000', 'config.json')
