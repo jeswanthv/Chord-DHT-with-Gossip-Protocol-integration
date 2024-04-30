@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import prot_buffers.data_struct_pb2 as data_struct_pb2
+import proto_buffers.data_struct_pb2 as data_struct_pb2
 
 
 class FileServiceStub(object):
@@ -16,8 +16,8 @@ class FileServiceStub(object):
         """
         self.RequestFile = channel.unary_stream(
                 '/dataStruct.FileService/RequestFile',
-                request_serializer=data__struct__pb2.FileRequest.SerializeToString,
-                response_deserializer=data__struct__pb2.FileResponse.FromString,
+                request_serializer=data_struct_pb2.FileRequest.SerializeToString,
+                response_deserializer=data_struct_pb2.FileResponse.FromString,
                 )
 
 
@@ -35,8 +35,8 @@ def add_FileServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'RequestFile': grpc.unary_stream_rpc_method_handler(
                     servicer.RequestFile,
-                    request_deserializer=data__struct__pb2.FileRequest.FromString,
-                    response_serializer=data__struct__pb2.FileResponse.SerializeToString,
+                    request_deserializer=data_struct_pb2.FileRequest.FromString,
+                    response_serializer=data_struct_pb2.FileResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -60,7 +60,7 @@ class FileService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_stream(request, target, '/dataStruct.FileService/RequestFile',
-            data__struct__pb2.FileRequest.SerializeToString,
-            data__struct__pb2.FileResponse.FromString,
+            data_struct_pb2.FileRequest.SerializeToString,
+            data_struct_pb2.FileResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

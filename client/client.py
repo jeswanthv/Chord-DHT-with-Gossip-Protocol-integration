@@ -1,8 +1,8 @@
 import grpc
 import os
 
-import prot_buffers.data_struct_pb2 as data_struct_pb2
-import prot_buffers.data_struct_pb2_grpc as data_struct_pb2_grpc
+import proto_buffers.data_struct_pb2 as data_struct_pb2
+import proto_buffers.data_struct_pb2_grpc as data_struct_pb2_grpc
 
 def run():
     with grpc.insecure_channel('localhost:50051') as channel:
@@ -11,7 +11,7 @@ def run():
         responses = stub.RequestFile(data_struct_pb2.FileRequest(filename=filename))
 
         # Specify the directory where you want to save the file
-        save_directory = "clientpath"
+        save_directory = "/Users/suryakangeyan/Projects/Distributed Computing final Project/output"
         os.makedirs(save_directory, exist_ok=True)  # Ensure the directory exists
 
         # Construct the full path where the file will be saved
