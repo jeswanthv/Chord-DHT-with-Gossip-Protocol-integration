@@ -1,4 +1,5 @@
-from virtual_node import Virtual_node
+# from virtual_node import Virtual_node
+from Virtualnode import VirtualNode
 import logging
 from concurrent import futures
 import time
@@ -30,7 +31,7 @@ def start_server(address, id, join, server_config_file):
     logger.setLevel(logging.INFO)
 
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=20))
-    virtual_node = Virtual_node(id, address, join, server_config)
+    virtual_node = VirtualNode(id, address, join, server_config)
     server_pb2_grpc.add_ServerServicer_to_server(virtual_node, server)
     # chaosmonkey_pb2_grpc.add_ChaosMonkeyServicer_to_server(virtual_node.cmserver, server)
     server.add_insecure_port(address)
@@ -46,4 +47,4 @@ def start_server(address, id, join, server_config_file):
 
 
 if __name__ == "__main__":
-    start_server('127.0.0.1:7001', 0, '127.0.0.1:7000', 'config.json')
+    start_server('127.0.0.1:7001', 0, '127.0.0.1:7001', 'config.json')

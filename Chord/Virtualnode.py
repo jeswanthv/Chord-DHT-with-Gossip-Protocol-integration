@@ -2,9 +2,15 @@ import grpc
 from concurrent import futures
 import threading
 import time
+import logging
+import os
+import threading
+import hashlib
 import hashlib
 import json
 import os
+from threading import Condition
+from threading import Lock
 import logging
 
 # Assuming server_pb2 and server_pb2_grpc are the generated files from your .proto definitions
@@ -13,30 +19,68 @@ import server_pb2_grpc
 
 
 class VirtualNode(server_pb2_grpc.ServerServicer):
-    def __init__(self, id, port, config):
-        self.id = id
-        self.port = port
-        self.config = config
-        self.server = None
-        self.logger = logging.getLogger(f"Node{self.id}")
-        logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    def __init__(self, id: int, local_addr, remote_addr, config):
+        # Read configuration from json file
+        self.REP_NUM = config["replication_num"]
+        self.SUCCESSOR_NUM = config["successor_num"]
+        self.STABLE_PERIOD = config["stabilize_period"]
+        self.FIXFINGER_PERIOD = config["fixfinger_period"]
+        self.CHECKPRE_PERIOD = config["checkpre_period"]
+        self.GLOBAL_TIMEOUT = config["global_timeout"]
+        self.JOIN_RETRY_PERIOD = config["join_retry_period"]
+        self.NUM_SERVERS = config["num_servers"]
+        self.LOG_SIZE = config["log_size"]
+        self.SIZE = 1 << self.LOG_SIZE
 
-    def start_server(self):
-        """Starts the gRPC server and listens on the specified port."""
-        self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-        server_pb2_grpc.add_ServerServicer_to_server(self, self.server)
-        self.server.add_insecure_port(f'localhost:{self.port}')
-        self.server.start()
-        self.logger.info(f"Node {self.id} listening on port {self.port}")
-        try:
-            self.server.wait_for_termination()
-        except KeyboardInterrupt:
-            self.server.stop(1000)
-    def report_status(self):
-        """Periodically reports the status of this node."""
-        while True:
-            self.logger.info(f"Node {self.id} running on port {self.port}")
-            time.sleep(2)
+        self.local_addr = local_addr
+        self.remote_addr = remote_addr
+        # self.id = sha1(self.local_addr, self.SIZE)
+        self.id = id
+        self.only_node_phase = -1
+        self.second_node = False
+
+        # [server id, server IP]
+        self.finger = [[-1, ""] for _ in range(self.LOG_SIZE)]
+        self.successor_list = [[-1, ""] for _ in range(self.SUCCESSOR_NUM)]
+        self.predecessor = [-1, ""]
+        self.next = 0
+
+        # Condition variable related
+        self.fix_finger_notified = False
+        self.rectify_cond = Condition()
+        self.fix_finger_cond = Condition()
+        self.check_pred_cond = Condition()
+        self.stabilize_cond = Condition()
+        self.successor_list_lock = Lock()
+
+        # self.disk_state_machine = "log/state_machine-%d.pkl" % self.id
+        self.state_machine = {}
+        self.logs = []
+        self.last_applied = 0
+
+        # chaos monkey server
+        # self.cmserver = CMServer(num_server=self.NUM_SERVERS)
+
+        # Set up Logger, create logger with 'chord'
+        self.logger = logging.getLogger("chord")
+        self.logger.setLevel(logging.DEBUG)
+        # create formatter and add it to the handlers
+        formatter = logging.Formatter('[%(asctime)s,%(msecs)d %(levelname)s]: %(message)s',
+                                      datefmt='%M:%S')
+        # create file handler which logs even debug messages
+        os.makedirs(os.path.dirname('log/logger-%d.txt' % self.id), exist_ok=True)
+        fh = logging.FileHandler('log/logger-%d.txt' % self.id)
+        fh.setLevel(logging.DEBUG)
+        fh.setFormatter(formatter)
+        self.logger.addHandler(fh)
+        # create console handler with a higher log level
+        # TODO: adjust level here
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.DEBUG)
+        ch.setFormatter(formatter)
+        self.logger.addHandler(ch)
+
+
 
     def find_successor(self, request, context):
         requested_id = request.id
@@ -127,9 +171,10 @@ class VirtualNode(server_pb2_grpc.ServerServicer):
         return put_resp
 
     def get_node_status(self, request, context):
-        print("VirtualNode get NOde status called for node with port id",request)
+
         client_ip = context.peer()  # Retrieves the IP of the calling client
         self.logger.info(f'Node status requested by {client_ip}')
+        print(f"VirtualNode get Node status called for node with port id", {client_ip})
 
         resp = server_pb2.NodeStatus()
         resp.id = self.id
@@ -144,38 +189,21 @@ class VirtualNode(server_pb2_grpc.ServerServicer):
             resp.finger_ip.append(self.finger[i][1])
         return resp
 
-
-def initialize_nodes(number_of_nodes):
-    """Creates and starts a specified number of nodes, each on its own port."""
-    config = {
-        "replication_num": 3,
-        "successor_num": 2,
-        "stabilize_period": 1000,
-        "fixfinger_period": 1000,
-        "checkpre_period": 1000,
-        "global_timeout": 500,
-        "join_retry_period": 5,
-        "num_servers": number_of_nodes,
-        "log_size": 10
-    }
-
-    initial_port = 7001
-    nodes = []
-    for i in range(number_of_nodes):
-        node = VirtualNode(id=i, port=initial_port + i, config=config)
-        nodes.append(node)
-        server_thread = threading.Thread(target=node.start_server)
-        server_thread.start()
-
-        time.sleep(0.1)  # Give the server time to start
-        # server_thread.join()
-    # Start a status reporting thread for each node
-    # for node in nodes:
-    #     status_thread = threading.Thread(target=node.report_status)
-    #     status_thread.start()
-
-    return nodes
-
-
-if __name__ == "__main__":
-    nodes = initialize_nodes(10)
+    def create(self):
+        self.only_node_phase = 0
+        self.predecessor = [-1, ""]
+        self.successor_list[0] = [self.id, self.local_addr]
+        self.logger.debug(f"[Create]: Create chord ring, 1st vn id: <{self.id}>, ip: <{self.local_addr}>")
+    def run(self):
+        # self.logger.debug(f"[Init]: Start virtual node, id is: <{self.id}>")
+        if self.remote_addr == self.local_addr:
+            self.create()
+            # self.logger.debug(f"[Init]: New Chord Ring with vn, id: <{self.id}>, ip: <{self.ip}>")
+        # stabilize_th = threading.Thread(target=self.stabilize, args=())
+        # stabilize_th.start()
+        # fix_finger_th = threading.Thread(target=self.fix_finger, args=())
+        # fix_finger_th.start()
+        # threading.Thread(target=self.init_rectify, args=()).start()
+        if self.local_addr != self.remote_addr:
+            print("This is the place where the chord servers running on different ports try to join the bootstrap node ");
+            self.join(self.id, self.remote_addr)
