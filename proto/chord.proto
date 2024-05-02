@@ -1,0 +1,103 @@
+syntax = "proto3";
+
+package chord;
+
+// Message that represents a node's details
+message PeerInfo {
+    string ip = 1;
+    int32 id = 2;
+    string port = 3;
+}
+
+message FingerTableEntry {
+    int32 start = 1;
+    int32 interval = 2;
+    PeerInfo node = 3;
+}
+
+message FingerTable {
+    repeated FingerTableEntry entries = 1;
+}
+
+message SuccessorListResponse {
+    repeated PeerInfo successors = 1;
+}
+
+// service ChordService {
+
+//     // RPC to get the successor of a node
+//     // rpc GetSuccessor(PeerInfo) returns (PeerInfo) {}
+
+//     rpc GetSuccessor(PeerInfo) returns (PeerInfo) {}
+
+//     // RPC to get the successor list of a node
+//     rpc GetSuccessorList(PeerInfo) returns (SuccessorListResponse) {}
+
+
+//     // RPC to get the predecessor of a node
+//     rpc GetPredecessor(PeerInfo) returns (PeerInfo) {}
+
+//     // RPC to find the successor of a node
+//     rpc FindSuccessor(PeerInfo) returns (PeerInfo) {}
+
+//     // RPC to find the predecessor of a node
+//     rpc FindPredecessor(PeerInfo) returns (PeerInfo) {}
+
+//     // RPC to notify a node of a new predecessor
+//     rpc Notify(PeerInfo) returns (PeerInfo) {}
+
+//     // RPC to check if a node is alive
+//     rpc Ping(PeerInfo) returns (PeerInfo) {}
+
+//     // RPC to get the finger table of a node
+//     rpc GetFingerTable(PeerInfo) returns (PeerInfo) {}
+
+//     // RPC to update the finger table of a node
+//     rpc UpdateFingerTable(PeerInfo) returns (PeerInfo) {}
+
+//     // RPC to get the closest preceding finger of a node
+//     rpc ClosestPrecedingFinger(PeerInfo) returns (PeerInfo) {}
+
+//     // RPC to update the successor list of a node
+//     rpc UpdateSuccessorList(PeerInfo) returns (PeerInfo) {}
+
+//     // RPC to get the predecessor list of a node
+//     rpc GetPredecessorList(PeerInfo) returns (PeerInfo) {}
+
+//     // RPC to update the predecessor list of a node
+//     rpc UpdatePredecessorList(PeerInfo) returns (PeerInfo) {}
+
+//     // RPC to get the successor list of a node
+//     rpc GetFingerTableList(PeerInfo) returns (PeerInfo) {}
+
+//     // RPC to update the successor list of a node
+//     rpc UpdateFingerTableList(PeerInfo) returns (PeerInfo) {}
+
+//     // RPC to get the predecessor list of a node
+//     rpc GetSuccessorListList(PeerInfo) returns (PeerInfo) {}
+
+//     // RPC to update the predecessor list of a node
+//     rpc UpdateSuccessorListList(PeerInfo) returns (PeerInfo) {}
+
+//     // RPC to get the successor list of a node
+//     rpc GetPredecessorListList(PeerInfo) returns (PeerInfo) {}
+// }
+
+service ChordService {
+
+    // RPC to get the successor of a node
+    rpc GetSuccessor(PeerInfo) returns (PeerInfo) {}
+
+    // RPC to get the successor list of a node
+    rpc GetSuccessorList(PeerInfo) returns (SuccessorListResponse) {}   
+
+    // RPC to get the predecessor of a node
+    rpc GetPredecessor(PeerInfo) returns (PeerInfo) {}
+
+    // RPC to find the successor of a node
+    rpc FindSuccessor(PeerInfo) returns (PeerInfo) {}
+
+    // RPC to find the predecessor of a node
+    rpc FindPredecessor(PeerInfo) returns (PeerInfo) {}
+    
+}
