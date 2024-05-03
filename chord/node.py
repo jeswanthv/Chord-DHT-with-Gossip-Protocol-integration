@@ -24,17 +24,18 @@ class Node:
         Join an existing node in the chord ring
         """
 
+        print("Starting join ....")
+
         if not bootstrap_node:
-            # Create a new ring
+            print("No bootstrap server provided. Starting a new chord ring.")
             self.successor = self
             self.predecessor = self
             for i in range(self.m):
                 self.finger_table[i] = self
+            print("Finger table initialized to self.")
+            print(self.finger_table)
         else:
-            # Join an existing ring
-            # client = grpc.insecure_channel(
-            #     f'{bootstrap_node.ip}:{bootstrap_node.port}')
-            # stub = chord_pb2_grpc.ChordServiceStub(client)
+            print("Joining an existing chord ring with bootstrap server {}.".format(bootstrap_node))
             bootstrap_stub, bootstrap_channel = create_stub(
                 bootstrap_node.ip, bootstrap_node.port)
 
@@ -47,6 +48,7 @@ class Node:
                 self.predecessor = Node(find_predecessor_response.node_id,
                                         find_predecessor_response.ip_address,
                                         find_predecessor_response.port, self.m)
+                print("Found predecessor node {}.".format(self.predecessor))
 
             predecessor_stub, predecessor_channel = create_stub(
                 self.predecessor.ip, self.predecessor.port)
@@ -58,6 +60,7 @@ class Node:
                 self.successor = Node(get_successor_response.node_id,
                                       get_successor_response.ip_address,
                                       get_successor_response.port, self.m)
+                print("Found successor node {}.".format(self.successor))
 
     def initialize_finger_table(self):
         """
