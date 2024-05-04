@@ -4,7 +4,7 @@ from proto import chord_pb2_grpc
 import threading
 from concurrent import futures
 
-from utils import sha1_hash, get_args
+from utils import sha1_hash, get_args, create_stub
 from chord.node import Node
 
 
@@ -14,17 +14,18 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         self.node = node
 
     def GetSuccessor(self, request, context):
+
         response = chord_pb2.NodeInfo()
-        response.node_id = self.node.successor.node_id
-        response.ip_address = self.node.successor.ip
+        response.id = self.node.successor.node_id
+        response.ip = self.node.successor.ip
         response.port = self.node.successor.port
 
         return response
 
     def GetPredecessor(self, request, context):
         response = chord_pb2.NodeInfo()
-        response.node_id = self.node.predecessor.node_id
-        response.ip_address = self.node.predecessor.ip
+        response.id = self.node.predecessor.node_id
+        response.ip = self.node.predecessor.ip
         response.port = self.node.predecessor.port
 
         return response
@@ -32,13 +33,12 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
     def FindPredecessor(self, request, context):
 
         print("Finding predecessor rpc called with port", self.node.port)
-
         # if first node in the ring
         if self.node.predecessor is None or self.node.successor.node_id == self.node.node_id:
             print("Returning self as predecessor")
             response = chord_pb2.NodeInfo()
-            response.node_id = self.node.node_id
-            response.ip_address = self.node.ip
+            response.id = self.node.node_id
+            response.ip = self.node.ip
             response.port = self.node.port
             return response
 
@@ -51,8 +51,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
                 current_node = current_node.closest_preceding_finger(id_to_find)
 
             response = chord_pb2.NodeInfo()
-            response.node_id = current_node.node_id
-            response.ip_address = current_node.ip
+            response.id = current_node.node_id
+            response.ip = current_node.ip
             response.port = current_node.port
             return response
 
@@ -62,26 +62,42 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         LINEAR SEARCH IMPLEMENTATION
         """
         print("Finding successor rpc called with port", self.node.port)
-        id_to_find = request.node_id
-        my_id = self.node.node_id
-        my_successor_id = self.node.successor.node_id
+        id_to_find = request.id
 
-        # Check if the requested ID is in the range (my_id, my_successor_id]
-        if (my_id < id_to_find <= my_successor_id) or (my_id > my_successor_id and (id_to_find > my_id or id_to_find <= my_successor_id)):
-            # The current node's successor is the successor of the requested node_id
-            response = chord_pb2.NodeInfo()
-            response.node_id = self.node.successor.node_id
-            response.ip_address = self.node.successor.ip
-            response.port = self.node.successor.port
-            return response
-        else:
-            # Need to ask the successor to find the successor
-            channel = grpc.insecure_channel(
-                f'{self.node.successor.ip}:{self.node.successor.port}')
-            stub = chord_pb2_grpc.ChordServiceStub(channel)
-            successor_request = chord_pb2.FindSuccessorRequest(id=id_to_find)
-            return stub.FindSuccessor(successor_request)
+        # IMPLEMENTATION 1
+        # my_id = self.node.node_id
+        # my_successor_id = self.node.successor.node_id
+        # # Check if the requested ID is in the range (my_id, my_successor_id]
+        # if (my_id < id_to_find <= my_successor_id) or (my_id > my_successor_id and (id_to_find > my_id or id_to_find <= my_successor_id)):
+        #     # The current node's successor is the successor of the requested node_id
+        #     response = chord_pb2.NodeInfo()
+        #     response.node_id = self.node.successor.node_id
+        #     response.ip_address = self.node.successor.ip
+        #     response.port = self.node.successor.port
+        #     return response
+        # else:
+        #     # Need to ask the successor to find the successor
+        #     channel = grpc.insecure_channel(
+        #         f'{self.node.successor.ip}:{self.node.successor.port}')
+        #     stub = chord_pb2_grpc.ChordServiceStub(channel)
+        #     successor_request = chord_pb2.FindSuccessorRequest(id=id_to_find)
+        #     return stub.FindSuccessor(successor_request)
 
+        # IMPLEMENTATION 2
+        node_stub, node_channel = create_stub(self.node.ip, self.node.port)
+        with node_channel:
+            find_pred_request = chord_pb2.FindPredecessorRequest(id=id_to_find)
+            find_pred_response = node_stub.FindPredecessor(find_pred_request)
+        
+        # Ask the predecessor to find the successor
+        pred_stub, pred_channel = create_stub(find_pred_response.ip_address, find_pred_response.port)
+
+        with pred_channel:
+            get_succ_request = chord_pb2.Empty()
+            get_succ_response = pred_stub.GetSuccessor(get_succ_request)
+
+        return get_succ_response
+        
     def InitFingerTable(self, request, context):
         """
         Initialize the finger table of the node

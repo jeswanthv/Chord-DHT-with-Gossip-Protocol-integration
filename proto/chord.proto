@@ -6,7 +6,7 @@ package chord;
 message NodeInfo {
     string ip = 1;
     int32 id = 2;
-    string port = 3;
+    int32 port = 3;
 }
 
 message FingerTableEntry {
@@ -26,6 +26,10 @@ message FindSuccessorRequest {
     int32 id = 1;
 }
 
+message FindPredecessorRequest {
+    int32 id = 1;
+}
+
 message Empty {}
 
 service ChordService {
@@ -34,16 +38,16 @@ service ChordService {
     rpc GetSuccessor(Empty) returns (NodeInfo) {}
 
     // RPC to get the successor list of a node
-    rpc GetSuccessorList(NodeInfo) returns (SuccessorListResponse) {}   
+    rpc GetSuccessorList(Empty) returns (SuccessorListResponse) {}   
 
     // RPC to get the predecessor of a node
-    rpc GetPredecessor(NodeInfo) returns (NodeInfo) {}
+    rpc GetPredecessor(Empty) returns (NodeInfo) {}
 
     // RPC to find the successor of a node
     rpc FindSuccessor(FindSuccessorRequest) returns (NodeInfo) {}
 
     // RPC to find the predecessor of a node
-    rpc FindPredecessor(NodeInfo) returns (NodeInfo) {}
+    rpc FindPredecessor(FindPredecessorRequest) returns (NodeInfo) {}
 
     rpc InitFingerTable(NodeInfo) returns (FingerTable) {}
     

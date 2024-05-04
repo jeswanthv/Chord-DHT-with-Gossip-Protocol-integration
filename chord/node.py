@@ -5,10 +5,10 @@ from utils import create_stub
 
 
 class Node:
-    def __init__(self, node_id, ip, port, m):
-        self.ip = ip
-        self.port = port
-        self.node_id = node_id
+    def __init__(self, node_id:int, ip:str, port:int, m):
+        self.ip = str(ip)
+        self.port = int(port)
+        self.node_id = int(node_id)
         self.m = m
         self.finger_table = {}
         self.predecessor = None
@@ -39,13 +39,17 @@ class Node:
                 bootstrap_node.ip, bootstrap_node.port)
 
             with bootstrap_channel:
-                find_predecessor_request = chord_pb2.NodeInfo(
-                    ip=self.ip, id=self.node_id, port=self.port)
-                find_predecessor_response = bootstrap_stub.FindPredecessor(
-                    find_predecessor_request)
+                
+                try:
+                    find_predecessor_request = chord_pb2.FindPredecessorRequest(id=self.node_id)
+                    find_predecessor_response = bootstrap_stub.FindPredecessor(
+                        find_predecessor_request, timeout=5)
+                except Exception as e:
+                    print("Error connecting to the bootstrap node: {}".format(e))
+                    return
 
-                self.predecessor = Node(find_predecessor_response.node_id,
-                                        find_predecessor_response.ip_address,
+                self.predecessor = Node(find_predecessor_response.id,
+                                        find_predecessor_response.ip,
                                         find_predecessor_response.port, self.m)
                 print("Found predecessor node {}.".format(self.predecessor))
 
@@ -53,13 +57,17 @@ class Node:
                 self.predecessor.ip, self.predecessor.port)
 
             with predecessor_channel:
-                get_successor_request = chord_pb2.Empty()
-                get_successor_response = predecessor_stub.GetSuccessor(
-                    get_successor_request)
-                self.successor = Node(get_successor_response.node_id,
-                                      get_successor_response.ip_address,
-                                      get_successor_response.port, self.m)
-                print("Found successor node {}.".format(self.successor))
+                try:
+                    get_successor_request = chord_pb2.Empty()
+                    get_successor_response = predecessor_stub.GetSuccessor(
+                        get_successor_request)
+                    self.successor = Node(get_successor_response.id,
+                                            get_successor_response.ip,
+                                            get_successor_response.port, self.m)
+                    print("Found successor node {}.".format(self.successor))
+                except Exception as e:
+                    print("Error connecting to the predecessor node: {}".format(e))
+                    return
 
     def initialize_finger_table(self):
         """
@@ -75,8 +83,8 @@ class Node:
             get_predecessor_request = chord_pb2.Empty()
             get_predecessor_response = stub.GetPredecessor(
                 get_predecessor_request)
-            self.predecessor = Node(get_predecessor_response.node_id,
-                                    get_predecessor_response.ip_address,
+            self.predecessor = Node(get_predecessor_response.id,
+                                    get_predecessor_response.ip,
                                     get_predecessor_response.port, self.m)
 
         print("Initializing the first finger to successor node {}.".format(
@@ -105,8 +113,8 @@ class Node:
                     find_successor_response = stub.FindSuccessor(
                         find_successor_request)
                     
-                    self.finger_table[i] = Node(find_successor_response.node_id,
-                                                find_successor_response.ip_address,
+                    self.finger_table[i] = Node(find_successor_response.id,
+                                                find_successor_response.ip,
                                                 find_successor_response.port, self.m)
                     
     def closest_preceding_finger(self, id):
@@ -138,6 +146,6 @@ class Node:
     # If no valid finger is found, return self to signify this node handles the request
         return self
     
-    
+
 
         

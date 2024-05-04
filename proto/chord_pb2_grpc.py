@@ -46,12 +46,12 @@ class ChordServiceStub(object):
                 _registered_method=True)
         self.GetSuccessorList = channel.unary_unary(
                 '/chord.ChordService/GetSuccessorList',
-                request_serializer=proto_dot_chord__pb2.NodeInfo.SerializeToString,
+                request_serializer=proto_dot_chord__pb2.Empty.SerializeToString,
                 response_deserializer=proto_dot_chord__pb2.SuccessorListResponse.FromString,
                 _registered_method=True)
         self.GetPredecessor = channel.unary_unary(
                 '/chord.ChordService/GetPredecessor',
-                request_serializer=proto_dot_chord__pb2.NodeInfo.SerializeToString,
+                request_serializer=proto_dot_chord__pb2.Empty.SerializeToString,
                 response_deserializer=proto_dot_chord__pb2.NodeInfo.FromString,
                 _registered_method=True)
         self.FindSuccessor = channel.unary_unary(
@@ -61,7 +61,7 @@ class ChordServiceStub(object):
                 _registered_method=True)
         self.FindPredecessor = channel.unary_unary(
                 '/chord.ChordService/FindPredecessor',
-                request_serializer=proto_dot_chord__pb2.NodeInfo.SerializeToString,
+                request_serializer=proto_dot_chord__pb2.FindPredecessorRequest.SerializeToString,
                 response_deserializer=proto_dot_chord__pb2.NodeInfo.FromString,
                 _registered_method=True)
         self.InitFingerTable = channel.unary_unary(
@@ -125,12 +125,12 @@ def add_ChordServiceServicer_to_server(servicer, server):
             ),
             'GetSuccessorList': grpc.unary_unary_rpc_method_handler(
                     servicer.GetSuccessorList,
-                    request_deserializer=proto_dot_chord__pb2.NodeInfo.FromString,
+                    request_deserializer=proto_dot_chord__pb2.Empty.FromString,
                     response_serializer=proto_dot_chord__pb2.SuccessorListResponse.SerializeToString,
             ),
             'GetPredecessor': grpc.unary_unary_rpc_method_handler(
                     servicer.GetPredecessor,
-                    request_deserializer=proto_dot_chord__pb2.NodeInfo.FromString,
+                    request_deserializer=proto_dot_chord__pb2.Empty.FromString,
                     response_serializer=proto_dot_chord__pb2.NodeInfo.SerializeToString,
             ),
             'FindSuccessor': grpc.unary_unary_rpc_method_handler(
@@ -140,7 +140,7 @@ def add_ChordServiceServicer_to_server(servicer, server):
             ),
             'FindPredecessor': grpc.unary_unary_rpc_method_handler(
                     servicer.FindPredecessor,
-                    request_deserializer=proto_dot_chord__pb2.NodeInfo.FromString,
+                    request_deserializer=proto_dot_chord__pb2.FindPredecessorRequest.FromString,
                     response_serializer=proto_dot_chord__pb2.NodeInfo.SerializeToString,
             ),
             'InitFingerTable': grpc.unary_unary_rpc_method_handler(
@@ -200,7 +200,7 @@ class ChordService(object):
             request,
             target,
             '/chord.ChordService/GetSuccessorList',
-            proto_dot_chord__pb2.NodeInfo.SerializeToString,
+            proto_dot_chord__pb2.Empty.SerializeToString,
             proto_dot_chord__pb2.SuccessorListResponse.FromString,
             options,
             channel_credentials,
@@ -227,7 +227,7 @@ class ChordService(object):
             request,
             target,
             '/chord.ChordService/GetPredecessor',
-            proto_dot_chord__pb2.NodeInfo.SerializeToString,
+            proto_dot_chord__pb2.Empty.SerializeToString,
             proto_dot_chord__pb2.NodeInfo.FromString,
             options,
             channel_credentials,
@@ -281,7 +281,7 @@ class ChordService(object):
             request,
             target,
             '/chord.ChordService/FindPredecessor',
-            proto_dot_chord__pb2.NodeInfo.SerializeToString,
+            proto_dot_chord__pb2.FindPredecessorRequest.SerializeToString,
             proto_dot_chord__pb2.NodeInfo.FromString,
             options,
             channel_credentials,
