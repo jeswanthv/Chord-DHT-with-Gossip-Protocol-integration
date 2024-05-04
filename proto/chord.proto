@@ -32,6 +32,12 @@ message FindPredecessorRequest {
 
 message Empty {}
 
+message UpdateFingerTableRequest {
+    NodeInfo node = 1;
+    int32 i = 2;
+    bool for_leave = 3;
+}
+
 service ChordService {
 
     // RPC to get the successor of a node
@@ -49,6 +55,12 @@ service ChordService {
     // RPC to find the predecessor of a node
     rpc FindPredecessor(FindPredecessorRequest) returns (NodeInfo) {}
 
-    rpc InitFingerTable(NodeInfo) returns (FingerTable) {}
+    // RPC to update the predecessor of a node
+    rpc SetPredecessor(NodeInfo) returns (Empty) {}
+
+    // RPC to update the successor of a node
+    rpc SetSuccessor(NodeInfo) returns (Empty) {}
+
+    rpc UpdateFingerTable(UpdateFingerTableRequest) returns (Empty) {}
     
 }
