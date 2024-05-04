@@ -33,7 +33,6 @@ class Node:
             for i in range(self.m):
                 self.finger_table[i] = self
             print("Finger table initialized to self.")
-            print(self.finger_table)
         else:
             print("Joining an existing chord ring with bootstrap server {}.".format(bootstrap_node))
             bootstrap_stub, bootstrap_channel = create_stub(
@@ -109,5 +108,36 @@ class Node:
                     self.finger_table[i] = Node(find_successor_response.node_id,
                                                 find_successor_response.ip_address,
                                                 find_successor_response.port, self.m)
+                    
+    def closest_preceding_finger(self, id):
+        """
+        Find the closest preceding finger of a node
+        """
+
+        # for i in range(self.m - 1, -1, -1):
+        #     if self.finger_table[i] is not None:
+        #         if self.node_id < self.finger_table[i].node_id < id or \
+        #                 (self.node_id > id and
+        #                     (self.finger_table[i].node_id > self.node_id or
+        #                         self.finger_table[i].node_id < id)):
+        #             return self.finger_table[i]
+
+        # return self
+
+        # might need correction for the wrap-around case
+        for i in range(self.m - 1, -1, -1):
+            finger_id = self.finger_table[i].node_id if self.finger_table[i] else None
+            if finger_id:
+                # Check if finger is between current node_id and id in a clockwise manner
+                if self.node_id < id:
+                    if self.node_id < finger_id < id:
+                        return self.finger_table[i]
+                else:  # This handles the wrap-around case
+                    if finger_id > self.node_id or finger_id < id:
+                        return self.finger_table[i]
+    # If no valid finger is found, return self to signify this node handles the request
+        return self
+    
+    
 
         

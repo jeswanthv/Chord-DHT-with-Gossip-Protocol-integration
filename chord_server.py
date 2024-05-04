@@ -6,7 +6,6 @@ from concurrent import futures
 
 from utils import sha1_hash, get_args
 from chord.node import Node
-import argparse
 
 
 class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
@@ -30,12 +29,39 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
         return response
 
+    def FindPredecessor(self, request, context):
+
+        print("Finding predecessor rpc called with port", self.node.port)
+
+        # if first node in the ring
+        if self.node.predecessor is None or self.node.successor.node_id == self.node.node_id:
+            print("Returning self as predecessor")
+            response = chord_pb2.NodeInfo()
+            response.node_id = self.node.node_id
+            response.ip_address = self.node.ip
+            response.port = self.node.port
+            return response
+
+        else:
+            id_to_find = request.id
+            current_node = self.node
+
+            # might need to fix this for wrap around case
+            while not (current_node.node_id < id_to_find <= current_node.successor.node_id):
+                current_node = current_node.closest_preceding_finger(id_to_find)
+
+            response = chord_pb2.NodeInfo()
+            response.node_id = current_node.node_id
+            response.ip_address = current_node.ip
+            response.port = current_node.port
+            return response
+
     def FindSuccessor(self, request, context):
         """
         FindSuccessor RPC call to find the successor node of a given node_id.
         LINEAR SEARCH IMPLEMENTATION
         """
-
+        print("Finding successor rpc called with port", self.node.port)
         id_to_find = request.node_id
         my_id = self.node.node_id
         my_successor_id = self.node.successor.node_id
@@ -91,9 +117,6 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         return chord_pb2.Empty()
 
 
-
-
-
 def start_server():
     try:
         args = get_args()
@@ -110,7 +133,7 @@ def start_server():
         if bootstrap_ip:
             bootstrap_node = Node(sha1_hash(
                 f"{bootstrap_ip}:{bootstrap_port}", m), bootstrap_ip, bootstrap_port, m)
-        
+
         chord_node.join_chord_ring(bootstrap_node)
 
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
@@ -119,7 +142,32 @@ def start_server():
         server.add_insecure_port(f"[::]:{node_port}")
         server.start()
         print(f"Server started at {node_ip_address}:{node_port}")
+
+        def run_input_loop():
+            while True:
+                inp = input(
+                    "Select an option:\n1. Print Finger Table\n2. Print Successor\n3. Print Predecessor\n4. Quit\n")
+                if inp == "1":
+                    print(chord_node.finger_table)
+                elif inp == "2":
+                    print(chord_node.successor)
+                elif inp == "3":
+                    print(chord_node.predecessor)
+                elif inp == "4":
+                    print("Shutting down the server.")
+                    server.stop(0)
+                    break
+                else:
+                    print("Invalid option. Please try again.")
+
+        # Start the input loop in a separate thread
+        thread = threading.Thread(target=run_input_loop)
+        thread.start()
+
+        # Wait for the server termination and input thread to finish
         server.wait_for_termination()
+        thread.join()
+
     except Exception as e:
         print("error occurred", e)
 
