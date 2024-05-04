@@ -68,8 +68,10 @@ class Node:
                 except Exception as e:
                     print("Error connecting to the predecessor node: {}".format(e))
                     return
+            
+            self.initialize_finger_table(bootstrap_node)
 
-    def initialize_finger_table(self):
+    def initialize_finger_table(self, bootstrap_node):
         """
         Initialize the finger table of the node
         """
@@ -77,7 +79,7 @@ class Node:
         successor = self.successor
 
         stub, channel = create_stub(
-            successor.ip, successor.port)
+            bootstrap_node.ip, bootstrap_node.port)
 
         with channel:
             get_predecessor_request = chord_pb2.Empty()
