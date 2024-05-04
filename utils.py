@@ -37,3 +37,23 @@ def get_args():
     parser.add_argument("--bootstrap_port", type=int,
                         help="Port number of the bootstrap node", required=False)
     return parser.parse_args()
+
+def is_in_between(num, limits, type='c'):
+    
+    min_limit, max_limit = limits
+    if min_limit <= max_limit:
+        # Normal range (not wrapping around the modulus)
+        if type == 'c':
+            return min_limit <= num <= max_limit
+        elif type == 'r':
+            return min_limit <= num < max_limit
+        elif type == 'l':
+            return min_limit < num <= max_limit
+    else:
+        # Range wraps around the modulus, e.g., (350, 10) in a circle of 0-359
+        if type == 'c':
+            return num >= min_limit or num <= max_limit
+        elif type == 'r':
+            return num >= min_limit or num < max_limit
+        elif type == 'l':
+            return num > min_limit or num <= max_limit
