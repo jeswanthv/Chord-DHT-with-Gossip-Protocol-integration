@@ -38,22 +38,21 @@ def get_args():
                         help="Port number of the bootstrap node", required=False)
     return parser.parse_args()
 
-def is_in_between(num, limits, type='c'):
+def is_in_between(num, lower_bound, upper_bound, boundary_type):
     
-    min_limit, max_limit = limits
-    if min_limit <= max_limit:
+    if lower_bound <= upper_bound:
         # Normal range (not wrapping around the modulus)
-        if type == 'c':
-            return min_limit <= num <= max_limit
-        elif type == 'r':
-            return min_limit <= num < max_limit
-        elif type == 'l':
-            return min_limit < num <= max_limit
+        if boundary_type == 'closed':
+            return lower_bound <= num <= upper_bound
+        elif boundary_type == 'right_open':
+            return lower_bound <= num < upper_bound
+        elif boundary_type == 'left_open':
+            return lower_bound < num <= upper_bound
     else:
         # Range wraps around the modulus, e.g., (350, 10) in a circle of 0-359
-        if type == 'c':
-            return num >= min_limit or num <= max_limit
-        elif type == 'r':
-            return num >= min_limit or num < max_limit
-        elif type == 'l':
-            return num > min_limit or num <= max_limit
+        if boundary_type == 'closed':
+            return num >= lower_bound or num <= upper_bound
+        elif boundary_type == 'right_open':
+            return num >= lower_bound or num < upper_bound
+        elif boundary_type == 'left_open':
+            return num > lower_bound or num <= upper_bound

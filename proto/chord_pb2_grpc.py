@@ -64,10 +64,20 @@ class ChordServiceStub(object):
                 request_serializer=proto_dot_chord__pb2.FindPredecessorRequest.SerializeToString,
                 response_deserializer=proto_dot_chord__pb2.NodeInfo.FromString,
                 _registered_method=True)
-        self.InitFingerTable = channel.unary_unary(
-                '/chord.ChordService/InitFingerTable',
+        self.SetPredecessor = channel.unary_unary(
+                '/chord.ChordService/SetPredecessor',
                 request_serializer=proto_dot_chord__pb2.NodeInfo.SerializeToString,
-                response_deserializer=proto_dot_chord__pb2.FingerTable.FromString,
+                response_deserializer=proto_dot_chord__pb2.Empty.FromString,
+                _registered_method=True)
+        self.SetSuccessor = channel.unary_unary(
+                '/chord.ChordService/SetSuccessor',
+                request_serializer=proto_dot_chord__pb2.NodeInfo.SerializeToString,
+                response_deserializer=proto_dot_chord__pb2.Empty.FromString,
+                _registered_method=True)
+        self.UpdateFingerTable = channel.unary_unary(
+                '/chord.ChordService/UpdateFingerTable',
+                request_serializer=proto_dot_chord__pb2.UpdateFingerTableRequest.SerializeToString,
+                response_deserializer=proto_dot_chord__pb2.Empty.FromString,
                 _registered_method=True)
 
 
@@ -109,7 +119,21 @@ class ChordServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def InitFingerTable(self, request, context):
+    def SetPredecessor(self, request, context):
+        """RPC to update the predecessor of a node
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SetSuccessor(self, request, context):
+        """RPC to update the successor of a node
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def UpdateFingerTable(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -143,10 +167,20 @@ def add_ChordServiceServicer_to_server(servicer, server):
                     request_deserializer=proto_dot_chord__pb2.FindPredecessorRequest.FromString,
                     response_serializer=proto_dot_chord__pb2.NodeInfo.SerializeToString,
             ),
-            'InitFingerTable': grpc.unary_unary_rpc_method_handler(
-                    servicer.InitFingerTable,
+            'SetPredecessor': grpc.unary_unary_rpc_method_handler(
+                    servicer.SetPredecessor,
                     request_deserializer=proto_dot_chord__pb2.NodeInfo.FromString,
-                    response_serializer=proto_dot_chord__pb2.FingerTable.SerializeToString,
+                    response_serializer=proto_dot_chord__pb2.Empty.SerializeToString,
+            ),
+            'SetSuccessor': grpc.unary_unary_rpc_method_handler(
+                    servicer.SetSuccessor,
+                    request_deserializer=proto_dot_chord__pb2.NodeInfo.FromString,
+                    response_serializer=proto_dot_chord__pb2.Empty.SerializeToString,
+            ),
+            'UpdateFingerTable': grpc.unary_unary_rpc_method_handler(
+                    servicer.UpdateFingerTable,
+                    request_deserializer=proto_dot_chord__pb2.UpdateFingerTableRequest.FromString,
+                    response_serializer=proto_dot_chord__pb2.Empty.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -294,7 +328,7 @@ class ChordService(object):
             _registered_method=True)
 
     @staticmethod
-    def InitFingerTable(request,
+    def SetPredecessor(request,
             target,
             options=(),
             channel_credentials=None,
@@ -307,9 +341,63 @@ class ChordService(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/chord.ChordService/InitFingerTable',
+            '/chord.ChordService/SetPredecessor',
             proto_dot_chord__pb2.NodeInfo.SerializeToString,
-            proto_dot_chord__pb2.FingerTable.FromString,
+            proto_dot_chord__pb2.Empty.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SetSuccessor(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chord.ChordService/SetSuccessor',
+            proto_dot_chord__pb2.NodeInfo.SerializeToString,
+            proto_dot_chord__pb2.Empty.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UpdateFingerTable(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chord.ChordService/UpdateFingerTable',
+            proto_dot_chord__pb2.UpdateFingerTableRequest.SerializeToString,
+            proto_dot_chord__pb2.Empty.FromString,
             options,
             channel_credentials,
             insecure,
