@@ -55,19 +55,22 @@ class Node:
                 self.predecessor = Node(find_predecessor_response.id,
                                         find_predecessor_response.ip,
                                         find_predecessor_response.port, self.m)
-                print("Found predecessor node {}.".format(self.predecessor))
+                print("Found predecessor node - {}.".format(self.predecessor))
 
             self_stub, self_channel = create_stub(self.ip, self.port)
-
             with self_channel:
+                print(f"node.py - curr node id {self.node_id} predecessor id {self.predecessor.node_id}")
                 set_predecessor_request = chord_pb2.NodeInfo(
                     id=self.predecessor.node_id, ip=self.predecessor.ip, port=self.predecessor.port
                 )
                 self_stub.SetPredecessor(set_predecessor_request, timeout=5)
+                print(f"node.py - curr node id {self.node_id} predecessor id {self.predecessor.node_id}")
+
+
 
             predecessor_stub, predecessor_channel = create_stub(
                 self.predecessor.ip, self.predecessor.port)
-
+            print(f"node.py - now setting the predecessors successor")
             with predecessor_channel:
                 try:
                     get_successor_request = chord_pb2.Empty()
@@ -80,7 +83,7 @@ class Node:
                 except Exception as e:
                     print("Error connecting to the predecessor node: {}".format(e))
                     return
-
+            return
             self.initialize_finger_table(bootstrap_node)
             print("Finger table initialized successfully.")
             print("Starting to update others.")
@@ -254,27 +257,29 @@ class Node:
         """
         Graceful leaving of the node form the network
         """
-
+        print(f"Node.py -leave method called on node {self.node_id},with predecessor {self.predecessor.node_id} , successor id {self.successor.node_id}")
         predecessor_stub, predecessor_stub_channel = create_stub(self.predecessor.ip, self.predecessor.port)
         successor_stub, successor_stub_channel = create_stub(self.successor.ip, self.successor.port)
+        try:
+            with successor_stub_channel, predecessor_stub_channel:
+                set_successor_request = chord_pb2.NodeInfo(
+                    id=self.successor.node_id, ip=self.successor.ip, port=self.successor.port)
+                predecessor_stub.SetSuccessor(set_successor_request)
 
-        with successor_stub_channel, predecessor_stub_channel:
-            set_successor_request = chord_pb2.NodeInfo(
-                id=self.successor.node_id, ip=self.successor.ip, port=self.successor.port)
-            predecessor_stub.SetSuccessor(set_successor_request)
+            set_predecessor_request = chord_pb2.NodeInfo(
+                id=self.predecessor.node_id, ip=self.predecessor.ip, port=self.predecessor.port)
+            successor_stub.SetPredecessor(set_predecessor_request)
 
-        set_predecessor_request = chord_pb2.NodeInfo(
-            id=self.predecessor.node_id, ip=self.predecessor.ip, port=self.predecessor.port)
-        successor_stub.SetPredecessor(set_predecessor_request)
-
-        update_finger_table_request = chord_pb2.UpdateFingerTableRequest(
-            node=chord_pb2.NodeInfo(
-                id=self.successor.node_id,
-                ip=self.successor.ip,
-                port=self.successor.port),
-            i=0,
-            for_leave=True
-        )
-        predecessor_stub.UpdateFingerTable(update_finger_table_request)
-
-        print("Node.py - Node gracefully leaving the network, leave success")
+            update_finger_table_request = chord_pb2.UpdateFingerTableRequest(
+                node=chord_pb2.NodeInfo(
+                    id=self.successor.node_id,
+                    ip=self.successor.ip,
+                    port=self.successor.port),
+                i=0,
+                for_leave=True
+            )
+            predecessor_stub.UpdateFingerTable(update_finger_table_request)
+        except Exception as e:
+            print(f"An error occurred during graceful leave: {e}")
+        finally:
+            print("Node.py - Node gracefully leaving the network, leave success")

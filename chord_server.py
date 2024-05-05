@@ -217,7 +217,7 @@ def start_server():
         def run_input_loop():
             while True:
                 inp = input(
-                    "Select an option:\n1. Print Finger Table\n2. Print Successor\n3. Print Predecessor\n4. Quit\n")
+                    "Select an option:\n1. Print Finger Table\n2. Print Successor\n3. Print Predecessor\n4. Leave Network\n5. Quit\n")
                 if inp == "1":
                     print(chord_node.finger_table)
                 elif inp == "2":
@@ -225,6 +225,8 @@ def start_server():
                 elif inp == "3":
                     print(chord_node.predecessor)
                 elif inp == "4":
+                    print(chord_node.leave())
+                elif inp == "5":
                     print("Shutting down the server.")
                     server.stop(0)
                     break
