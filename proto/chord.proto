@@ -30,6 +30,10 @@ message FindPredecessorRequest {
     int32 id = 1;
 }
 
+message FindClosestPrecedingFingerRequest {
+    int32 id = 1;
+}
+
 message Empty {}
 
 message UpdateFingerTableRequest {
@@ -62,5 +66,7 @@ service ChordService {
     rpc SetSuccessor(NodeInfo) returns (Empty) {}
 
     rpc UpdateFingerTable(UpdateFingerTableRequest) returns (Empty) {}
+
+    rpc FindClosestPrecedingFinger(FindClosestPrecedingFingerRequest) returns (NodeInfo) {}
     
 }

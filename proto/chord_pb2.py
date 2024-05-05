@@ -14,7 +14,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x11proto/chord.proto\x12\x05\x63hord\"0\n\x08NodeInfo\x12\n\n\x02ip\x18\x01 \x01(\t\x12\n\n\x02id\x18\x02 \x01(\x05\x12\x0c\n\x04port\x18\x03 \x01(\x05\"<\n\x10\x46ingerTableEntry\x12\t\n\x01i\x18\x01 \x01(\x05\x12\x1d\n\x04node\x18\x02 \x01(\x0b\x32\x0f.chord.NodeInfo\"7\n\x0b\x46ingerTable\x12(\n\x07\x65ntries\x18\x01 \x03(\x0b\x32\x17.chord.FingerTableEntry\"<\n\x15SuccessorListResponse\x12#\n\nsuccessors\x18\x01 \x03(\x0b\x32\x0f.chord.NodeInfo\"\"\n\x14\x46indSuccessorRequest\x12\n\n\x02id\x18\x01 \x01(\x05\"$\n\x16\x46indPredecessorRequest\x12\n\n\x02id\x18\x01 \x01(\x05\"\x07\n\x05\x45mpty\"W\n\x18UpdateFingerTableRequest\x12\x1d\n\x04node\x18\x01 \x01(\x0b\x32\x0f.chord.NodeInfo\x12\t\n\x01i\x18\x02 \x01(\x05\x12\x11\n\tfor_leave\x18\x03 \x01(\x08\x32\xe4\x03\n\x0c\x43hordService\x12/\n\x0cGetSuccessor\x12\x0c.chord.Empty\x1a\x0f.chord.NodeInfo\"\x00\x12@\n\x10GetSuccessorList\x12\x0c.chord.Empty\x1a\x1c.chord.SuccessorListResponse\"\x00\x12\x31\n\x0eGetPredecessor\x12\x0c.chord.Empty\x1a\x0f.chord.NodeInfo\"\x00\x12?\n\rFindSuccessor\x12\x1b.chord.FindSuccessorRequest\x1a\x0f.chord.NodeInfo\"\x00\x12\x43\n\x0f\x46indPredecessor\x12\x1d.chord.FindPredecessorRequest\x1a\x0f.chord.NodeInfo\"\x00\x12\x31\n\x0eSetPredecessor\x12\x0f.chord.NodeInfo\x1a\x0c.chord.Empty\"\x00\x12/\n\x0cSetSuccessor\x12\x0f.chord.NodeInfo\x1a\x0c.chord.Empty\"\x00\x12\x44\n\x11UpdateFingerTable\x12\x1f.chord.UpdateFingerTableRequest\x1a\x0c.chord.Empty\"\x00\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x11proto/chord.proto\x12\x05\x63hord\"0\n\x08NodeInfo\x12\n\n\x02ip\x18\x01 \x01(\t\x12\n\n\x02id\x18\x02 \x01(\x05\x12\x0c\n\x04port\x18\x03 \x01(\x05\"<\n\x10\x46ingerTableEntry\x12\t\n\x01i\x18\x01 \x01(\x05\x12\x1d\n\x04node\x18\x02 \x01(\x0b\x32\x0f.chord.NodeInfo\"7\n\x0b\x46ingerTable\x12(\n\x07\x65ntries\x18\x01 \x03(\x0b\x32\x17.chord.FingerTableEntry\"<\n\x15SuccessorListResponse\x12#\n\nsuccessors\x18\x01 \x03(\x0b\x32\x0f.chord.NodeInfo\"\"\n\x14\x46indSuccessorRequest\x12\n\n\x02id\x18\x01 \x01(\x05\"$\n\x16\x46indPredecessorRequest\x12\n\n\x02id\x18\x01 \x01(\x05\"/\n!FindClosestPrecedingFingerRequest\x12\n\n\x02id\x18\x01 \x01(\x05\"\x07\n\x05\x45mpty\"W\n\x18UpdateFingerTableRequest\x12\x1d\n\x04node\x18\x01 \x01(\x0b\x32\x0f.chord.NodeInfo\x12\t\n\x01i\x18\x02 \x01(\x05\x12\x11\n\tfor_leave\x18\x03 \x01(\x08\x32\xbf\x04\n\x0c\x43hordService\x12/\n\x0cGetSuccessor\x12\x0c.chord.Empty\x1a\x0f.chord.NodeInfo\"\x00\x12@\n\x10GetSuccessorList\x12\x0c.chord.Empty\x1a\x1c.chord.SuccessorListResponse\"\x00\x12\x31\n\x0eGetPredecessor\x12\x0c.chord.Empty\x1a\x0f.chord.NodeInfo\"\x00\x12?\n\rFindSuccessor\x12\x1b.chord.FindSuccessorRequest\x1a\x0f.chord.NodeInfo\"\x00\x12\x43\n\x0f\x46indPredecessor\x12\x1d.chord.FindPredecessorRequest\x1a\x0f.chord.NodeInfo\"\x00\x12\x31\n\x0eSetPredecessor\x12\x0f.chord.NodeInfo\x1a\x0c.chord.Empty\"\x00\x12/\n\x0cSetSuccessor\x12\x0f.chord.NodeInfo\x1a\x0c.chord.Empty\"\x00\x12\x44\n\x11UpdateFingerTable\x12\x1f.chord.UpdateFingerTableRequest\x1a\x0c.chord.Empty\"\x00\x12Y\n\x1a\x46indClosestPrecedingFinger\x12(.chord.FindClosestPrecedingFingerRequest\x1a\x0f.chord.NodeInfo\"\x00\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,10 +33,12 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_FINDSUCCESSORREQUEST']._serialized_end=293
   _globals['_FINDPREDECESSORREQUEST']._serialized_start=295
   _globals['_FINDPREDECESSORREQUEST']._serialized_end=331
-  _globals['_EMPTY']._serialized_start=333
-  _globals['_EMPTY']._serialized_end=340
-  _globals['_UPDATEFINGERTABLEREQUEST']._serialized_start=342
-  _globals['_UPDATEFINGERTABLEREQUEST']._serialized_end=429
-  _globals['_CHORDSERVICE']._serialized_start=432
-  _globals['_CHORDSERVICE']._serialized_end=916
+  _globals['_FINDCLOSESTPRECEDINGFINGERREQUEST']._serialized_start=333
+  _globals['_FINDCLOSESTPRECEDINGFINGERREQUEST']._serialized_end=380
+  _globals['_EMPTY']._serialized_start=382
+  _globals['_EMPTY']._serialized_end=389
+  _globals['_UPDATEFINGERTABLEREQUEST']._serialized_start=391
+  _globals['_UPDATEFINGERTABLEREQUEST']._serialized_end=478
+  _globals['_CHORDSERVICE']._serialized_start=481
+  _globals['_CHORDSERVICE']._serialized_end=1056
 # @@protoc_insertion_point(module_scope)

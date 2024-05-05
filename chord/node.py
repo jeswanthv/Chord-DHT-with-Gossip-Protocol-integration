@@ -14,7 +14,7 @@ class Node:
         self.finger_table = {}
         self.predecessor = None
         self.successor = None
-        self.finger_table = {i: None for i in range(m)}
+        self.finger_table = {i: self for i in range(m)}
         self.successor_list = [self for _ in range(3)]
         self.store = {}
 
@@ -58,7 +58,7 @@ class Node:
                 print("Found predecessor node {}.".format(self.predecessor))
             
             self_stub, self_channel = create_stub(self.ip, self.port)
-
+            print("HEEERE")
             with self_channel:
                 set_predecessor_request = chord_pb2.NodeInfo(
                     id= self.predecessor.node_id, ip=self.predecessor.ip, port=self.predecessor.port
@@ -160,36 +160,41 @@ class Node:
                                                 find_successor_response.ip,
                                                 find_successor_response.port, self.m)
 
-    def closest_preceding_finger(self, id):
-        """
-        Find the closest preceding finger of a node
-        """
+    # def closest_preceding_finger(self, id):
+    #     """
+    #     Find the closest preceding finger of a node
+    #     """
 
-        # for i in range(self.m - 1, -1, -1):
-        #     if self.finger_table[i] is not None:
-        #         if self.node_id < self.finger_table[i].node_id < id or \
-        #                 (self.node_id > id and
-        #                     (self.finger_table[i].node_id > self.node_id or
-        #                         self.finger_table[i].node_id < id)):
-        #             return self.finger_table[i]
+    #     # for i in range(self.m - 1, -1, -1):
+    #     #     if self.finger_table[i] is not None:
+    #     #         if self.node_id < self.finger_table[i].node_id < id or \
+    #     #                 (self.node_id > id and
+    #     #                     (self.finger_table[i].node_id > self.node_id or
+    #     #                         self.finger_table[i].node_id < id)):
+    #     #             return self.finger_table[i]
 
+    #     # return self
+
+    #     # might need correction for the wrap-around case
+    #     # for i in range(self.m - 1, -1, -1):
+    #     #     finger_id = self.finger_table[i].node_id if self.finger_table[i] else None
+    #     #     if finger_id:
+    #     #         # Check if finger is between current node_id and id in a clockwise manner
+    #     #         if self.node_id < id:
+    #     #             if self.node_id < finger_id < id:
+    #     #                 return self.finger_table[i]
+    #     #         else:  # This handles the wrap-around case
+    #     #             if finger_id > self.node_id or finger_id < id:
+    #     #                 return self.finger_table[i]
+    #     # If no valid finger is found, return self to signify this node handles the request
+
+
+    #     for i in range(self.m - 1, -1, -1):
+    #         if is_in_between(self.finger_table[i].node_id, self.node_id, id, 'open?'):
+    #             return self.finger_table[i]
+
+        # print("Returning self as closest preceding finger.")
         # return self
-
-        # might need correction for the wrap-around case
-        for i in range(self.m - 1, -1, -1):
-            finger_id = self.finger_table[i].node_id if self.finger_table[i] else None
-            if finger_id:
-                # Check if finger is between current node_id and id in a clockwise manner
-                if self.node_id < id:
-                    if self.node_id < finger_id < id:
-                        return self.finger_table[i]
-                else:  # This handles the wrap-around case
-                    if finger_id > self.node_id or finger_id < id:
-                        return self.finger_table[i]
-        # If no valid finger is found, return self to signify this node handles the request
-
-        print("Returning self as closest preceding finger.")
-        return self
 
     def update_other_nodes(self):
         """
@@ -197,6 +202,7 @@ class Node:
         """
         for i in range(self.m):
             # go_back_n part
+            print("CAME IN HERE", i)
             update_id = self.node_id - 2**i
             if update_id < 0:
                 update_id = self.node_id + (2**self.m - 2**i)

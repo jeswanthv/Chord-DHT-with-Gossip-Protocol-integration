@@ -15,11 +15,12 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
     def GetSuccessor(self, request, context):
 
+        print("GetSuccessor rpc called with port", self.node.port)
         response = chord_pb2.NodeInfo()
         response.id = self.node.successor.node_id
         response.ip = self.node.successor.ip
         response.port = self.node.successor.port
-
+        print("Returning successor", response)
         return response
 
     def SetSuccessor(self, request, context):
@@ -70,7 +71,7 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
         print("Finding predecessor rpc called with port", self.node.port)
         # if first node in the ring
-        if self.node.predecessor is None or self.node.successor.node_id == self.node.node_id:
+        if self.node.successor.node_id == self.node.node_id:
             print("Returning self as predecessor")
             response = chord_pb2.NodeInfo()
             response.id = self.node.node_id
@@ -81,25 +82,46 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         else:
             id_to_find = request.id
             current_node = self.node
-
             # might need to fix this for wrap around case
             # while not (current_node.node_id < id_to_find <= current_node.successor.node_id):
-            current_node_stub, current_node_channel = create_stub(
-                current_node.ip, current_node.port)
+            # current_node_stub, current_node_channel = create_stub(
+            #     current_node.ip, current_node.port)
            
             while not (is_in_between(id_to_find, current_node.node_id, current_node.successor.node_id, 'right_open')):
-                current_node = current_node.closest_preceding_finger(
-                    id_to_find)
                 current_node_stub, current_node_channel = create_stub(
                     current_node.ip, current_node.port)
+
                 with current_node_channel:
+                    find_closest_preceding_finger_request = chord_pb2.FindClosestPrecedingFingerRequest(id=id_to_find)
+                    closest_resp = current_node_stub.FindClosestPrecedingFinger(find_closest_preceding_finger_request)
+                    current_node = Node(closest_resp.id, closest_resp.ip, closest_resp.port, self.node.m)
+
                     get_successor_request = chord_pb2.Empty()
                     get_successor_response = current_node_stub.GetSuccessor(
                         get_successor_request)
                     current_node.successor = Node(
                         get_successor_response.id, get_successor_response.ip, get_successor_response.port, self.node.m)
-                print("current_node", current_node)
-                print("current_node.successor", current_node.successor)
+                    
+                    print("current_node", current_node)
+                    print("current_node.successor", current_node.successor)
+                    print("id_to_find", id_to_find)
+
+                # current_node_stub, current_node_channel = create_stub(
+                #     current_node.ip, current_node.port)
+                    
+
+                # current_node = current_node.closest_preceding_finger(
+                #     id_to_find)
+                # current_node_stub, current_node_channel = create_stub(
+                #     current_node.ip, current_node.port)
+                # with current_node_channel:
+                    # get_successor_request = chord_pb2.Empty()
+                    # get_successor_response = current_node_stub.GetSuccessor(
+                    #     get_successor_request)
+                    # current_node.successor = Node(
+                    #     get_successor_response.id, get_successor_response.ip, get_successor_response.port, self.node.m)
+                    
+
 
             response = chord_pb2.NodeInfo()
             response.id = current_node.node_id
@@ -149,6 +171,29 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
             get_succ_response = pred_stub.GetSuccessor(get_succ_request)
 
         return get_succ_response
+    
+    def FindClosestPrecedingFinger(self, request, context):
+        id_to_find = request.id
+        response = chord_pb2.NodeInfo()
+        print("self.node.node_id", self.node.node_id)
+        print("CLOSEST PRECEDING FINGER ID", id_to_find)
+        print("FINGER TABLE", self.node.finger_table[9].node_id)
+        for i in range(self.node.m-1, -1, -1):
+            if is_in_between(self.node.finger_table[i].node_id, self.node.node_id, id_to_find, 'closed'):
+                print("TRUE FOR IDENTIFIER", id_to_find)
+                print("i=", i, self.node.finger_table[i], [self.node.node_id, id_to_find])
+
+                response.id = self.node.finger_table[i].node_id
+                response.ip = self.node.finger_table[i].ip
+                response.port = self.node.finger_table[i].port
+                return response
+        
+        response.id = self.node.node_id
+        response.ip = self.node.ip
+        response.port = self.node.port
+        return response
+    
+        
     
     def UpdateFingerTable(self, request, context):
         i = request.i
