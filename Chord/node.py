@@ -230,3 +230,34 @@ class Node:
                                         find_successor_response.port, self.m)
 
         print("Fingers fixed successfully.")
+
+    def leave(self):
+        """
+        Graceful leaving of the node form the network
+        """
+
+        predecessor_stub,predecessor_stub_channel =create_stub(self.predecessor.ip,self.predecessor.port)
+        successor_stub,successor_stub_channel  = create_stub(self.successor.ip, self.successor.port)
+
+        with successor_stub_channel,predecessor_stub_channel :
+            set_successor_request = chord_pb2.NodeInfo(
+                id=self.successor.node_id, ip=self.successor.ip, port=self.successor.port)
+            predecessor_stub.SetSuccessor(set_successor_request)
+
+        set_predecessor_request = chord_pb2.NodeInfo(
+            id=self.predecessor.node_id, ip=self.predecessor.ip, port=self.predecessor.port)
+        successor_stub.SetPredecessor(set_predecessor_request)
+
+        update_finger_table_request = chord_pb2.UpdateFingerTableRequest(
+            node=chord_pb2.NodeInfo(
+                id=self.successor.node_id,
+                ip=self.successor.ip,
+                port=self.successor.port),
+            i=0,
+            for_leave=True
+        )
+        predecessor_stub.UpdateFingerTable(update_finger_table_request)
+
+        print("Node.py - Node gracefully leaving the network, leave success")
+
+

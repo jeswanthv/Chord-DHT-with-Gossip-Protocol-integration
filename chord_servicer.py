@@ -189,7 +189,7 @@ def start_server():
         if bootstrap_ip:
             bootstrap_node = Node(sha1_hash(
                 f"{bootstrap_ip}:{bootstrap_port}", m), bootstrap_ip, bootstrap_port, m)
-
+        print(f"ChordServicer.py - bootstrap node ip address ")
         chord_node.join_chord_ring(bootstrap_node)
 
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
