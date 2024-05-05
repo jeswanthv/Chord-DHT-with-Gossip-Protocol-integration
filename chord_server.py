@@ -32,7 +32,7 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
         i = 1
         while i < 3:
-            intermediate_node = self.node.successor_list[i-1]
+            intermediate_node = self.node.successor_list[i - 1]
             if intermediate_node is not None:
                 intermediate_stub, intermediate_channel = create_stub(
                     intermediate_node.ip, intermediate_node.port)
@@ -48,6 +48,7 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
             i += 1
 
+        return chord_pb2.Empty()
 
     def GetPredecessor(self, request, context):
         response = chord_pb2.NodeInfo()
@@ -82,9 +83,22 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
             # might need to fix this for wrap around case
             # while not (current_node.node_id < id_to_find <= current_node.successor.node_id):
+            current_node_stub, current_node_channel = create_stub(
+                current_node.ip, current_node.port)
+
             while not (is_in_between(id_to_find, current_node.node_id, current_node.successor.node_id, 'right_open')):
                 current_node = current_node.closest_preceding_finger(
                     id_to_find)
+                current_node_stub, current_node_channel = create_stub(
+                    current_node.ip, current_node.port)
+                with current_node_channel:
+                    get_successor_request = chord_pb2.Empty()
+                    get_successor_response = current_node_stub.GetSuccessor(
+                        get_successor_request)
+                    current_node.successor = Node(
+                        get_successor_response.id, get_successor_response.ip, get_successor_response.port, self.node.m)
+                print("current_node", current_node)
+                print("current_node.successor", current_node.successor)
 
             response = chord_pb2.NodeInfo()
             response.id = current_node.node_id
@@ -134,7 +148,7 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
             get_succ_response = pred_stub.GetSuccessor(get_succ_request)
 
         return get_succ_response
-    
+
     def UpdateFingerTable(self, request, context):
         i = request.i
         source_node = request.node
@@ -146,8 +160,9 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         if for_leave:
             self.node.finger_table[i] = Node(id, source_ip, source_port, self.node.m)
             return chord_pb2.Empty()
-        
-        if source_id != self.node.node_id and is_in_between(source_id, self.node.node_id, self.node.finger_table[i].node_id, 'left_open'):
+
+        if source_id != self.node.node_id and is_in_between(source_id, self.node.node_id,
+                                                            self.node.finger_table[i].node_id, 'left_open'):
             self.node.finger_table[i] = Node(source_id, source_ip, source_port, self.node.m)
             # Ask the predecessor to update the finger table
             pred = self.node.predecessor
@@ -189,14 +204,14 @@ def start_server():
         if bootstrap_ip:
             bootstrap_node = Node(sha1_hash(
                 f"{bootstrap_ip}:{bootstrap_port}", m), bootstrap_ip, bootstrap_port, m)
-        print(f"ChordServicer.py - bootstrap node ip address ")
-        chord_node.join_chord_ring(bootstrap_node)
 
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         chord_pb2_grpc.add_ChordServiceServicer_to_server(
             ChordNodeServicer(chord_node), server)
         server.add_insecure_port(f"[::]:{node_port}")
         server.start()
+        chord_node.join_chord_ring(bootstrap_node)
+
         print(f"Server started at {node_ip_address}:{node_port}")
 
         def run_input_loop():

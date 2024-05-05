@@ -27,7 +27,7 @@ def create_stub(ip, port):
 
 
 def get_args():
-    parser = argparse.ArgumentParser(description="Chord Node")
+    parser = argparse.ArgumentParser(description="chord Node")
     parser.add_argument("--ip", type=str, help="IP address of the node")
     parser.add_argument("--port", type=int, help="Port number of the node")
     parser.add_argument(
