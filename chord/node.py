@@ -195,7 +195,21 @@ class Node:
 
         # print("Returning self as closest preceding finger.")
         # return self
+    def go_back_n(self, node_id, i) -> int:
+        """
+        Author: Adarsh Trivedi
+        Helper functions.
+        :param node_id: Current node_id
+        :param i: How many steps to move back.
+        :return: id after moving specified steps back.
+        """
+        diff = node_id - i
 
+        if diff >= 0:
+            return diff
+        else:
+            return node_id + (2 ** self.m - i)
+        
     def update_other_nodes(self):
         """
         Update other nodes in the ring about the new node
@@ -203,10 +217,12 @@ class Node:
         for i in range(self.m):
             # go_back_n part
             print("CAME IN HERE", i)
-            update_id = self.node_id - 2**i
-            if update_id < 0:
-                update_id = self.node_id + (2**self.m - 2**i)
-
+            update_id = self.go_back_n(self.node_id, 2**(i))
+            # update_id = self.node_id - 2**i
+            # if update_id < 0:
+            #     update_id = self.node_id + (2**self.m - 2**i)
+            print("Update id: ", update_id)
+            # exit(0)
             stub, channel = create_stub(self.ip, self.port)
 
             with channel:

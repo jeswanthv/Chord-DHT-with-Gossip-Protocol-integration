@@ -102,9 +102,9 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
                     current_node.successor = Node(
                         get_successor_response.id, get_successor_response.ip, get_successor_response.port, self.node.m)
                     
-                    print("current_node", current_node)
-                    print("current_node.successor", current_node.successor)
-                    print("id_to_find", id_to_find)
+                    # print("current_node", current_node)
+                    # print("current_node.successor", current_node.successor)
+                    # print("id_to_find", id_to_find)
 
                 # current_node_stub, current_node_channel = create_stub(
                 #     current_node.ip, current_node.port)
@@ -175,9 +175,9 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
     def FindClosestPrecedingFinger(self, request, context):
         id_to_find = request.id
         response = chord_pb2.NodeInfo()
-        print("self.node.node_id", self.node.node_id)
-        print("CLOSEST PRECEDING FINGER ID", id_to_find)
-        print("FINGER TABLE", self.node.finger_table[9].node_id)
+        # print("self.node.node_id", self.node.node_id)
+        # print("CLOSEST PRECEDING FINGER ID", id_to_find)
+        # print("FINGER TABLE", self.node.finger_table[9].node_id)
         for i in range(self.node.m-1, -1, -1):
             if is_in_between(self.node.finger_table[i].node_id, self.node.node_id, id_to_find, 'closed'):
                 print("TRUE FOR IDENTIFIER", id_to_find)
