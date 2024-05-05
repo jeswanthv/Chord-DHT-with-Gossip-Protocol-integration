@@ -79,6 +79,11 @@ class ChordServiceStub(object):
                 request_serializer=proto_dot_chord__pb2.UpdateFingerTableRequest.SerializeToString,
                 response_deserializer=proto_dot_chord__pb2.Empty.FromString,
                 _registered_method=True)
+        self.FindClosestPrecedingFinger = channel.unary_unary(
+                '/chord.ChordService/FindClosestPrecedingFinger',
+                request_serializer=proto_dot_chord__pb2.FindClosestPrecedingFingerRequest.SerializeToString,
+                response_deserializer=proto_dot_chord__pb2.NodeInfo.FromString,
+                _registered_method=True)
 
 
 class ChordServiceServicer(object):
@@ -139,6 +144,12 @@ class ChordServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def FindClosestPrecedingFinger(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_ChordServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -181,6 +192,11 @@ def add_ChordServiceServicer_to_server(servicer, server):
                     servicer.UpdateFingerTable,
                     request_deserializer=proto_dot_chord__pb2.UpdateFingerTableRequest.FromString,
                     response_serializer=proto_dot_chord__pb2.Empty.SerializeToString,
+            ),
+            'FindClosestPrecedingFinger': grpc.unary_unary_rpc_method_handler(
+                    servicer.FindClosestPrecedingFinger,
+                    request_deserializer=proto_dot_chord__pb2.FindClosestPrecedingFingerRequest.FromString,
+                    response_serializer=proto_dot_chord__pb2.NodeInfo.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -398,6 +414,33 @@ class ChordService(object):
             '/chord.ChordService/UpdateFingerTable',
             proto_dot_chord__pb2.UpdateFingerTableRequest.SerializeToString,
             proto_dot_chord__pb2.Empty.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def FindClosestPrecedingFinger(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chord.ChordService/FindClosestPrecedingFinger',
+            proto_dot_chord__pb2.FindClosestPrecedingFingerRequest.SerializeToString,
+            proto_dot_chord__pb2.NodeInfo.FromString,
             options,
             channel_credentials,
             insecure,
