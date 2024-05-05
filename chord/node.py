@@ -56,6 +56,16 @@ class Node:
                                         find_predecessor_response.ip,
                                         find_predecessor_response.port, self.m)
                 print("Found predecessor node {}.".format(self.predecessor))
+            
+            self_stub, self_channel = create_stub(self.ip, self.port)
+
+            with self_channel:
+                set_predecessor_request = chord_pb2.NodeInfo(
+                    id= self.predecessor.node_id, ip=self.predecessor.ip, port=self.predecessor.port
+                )
+                self_stub.SetPredecessor(set_predecessor_request, timeout=5)
+
+
 
             predecessor_stub, predecessor_channel = create_stub(
                 self.predecessor.ip, self.predecessor.port)
@@ -64,7 +74,7 @@ class Node:
                 try:
                     get_successor_request = chord_pb2.Empty()
                     get_successor_response = predecessor_stub.GetSuccessor(
-                        get_successor_request)
+                        get_successor_request, timeout=5)
                     self.successor = Node(get_successor_response.id,
                                           get_successor_response.ip,
                                           get_successor_response.port, self.m)
@@ -86,7 +96,7 @@ class Node:
             with successor_channel:
                 set_predecessor_request = chord_pb2.NodeInfo(
                     id=self.node_id, ip=self.ip, port=self.port)
-                successor_stub.SetPredecessor(set_predecessor_request)
+                successor_stub.SetPredecessor(set_predecessor_request, timeout=5)
 
             print("Successfully updated the successor's predecessor pointer.")
 
@@ -97,7 +107,7 @@ class Node:
             with predecessor_channel:
                 set_successor_request = chord_pb2.NodeInfo(
                     id=self.node_id, ip=self.ip, port=self.port)
-                predecessor_stub.SetSuccessor(set_successor_request)
+                predecessor_stub.SetSuccessor(set_successor_request, timeout=5)
 
             print("Successfully updated the predecessor's successor pointer.")
 
@@ -115,7 +125,7 @@ class Node:
         with channel:
             get_predecessor_request = chord_pb2.Empty()
             get_predecessor_response = stub.GetPredecessor(
-                get_predecessor_request)
+                get_predecessor_request, timeout=5)
             self.predecessor = Node(get_predecessor_response.id,
                                     get_predecessor_response.ip,
                                     get_predecessor_response.port, self.m)
@@ -144,7 +154,7 @@ class Node:
                     find_successor_request = chord_pb2.FindSuccessorRequest(
                         node_id=id_to_find)
                     find_successor_response = stub.FindSuccessor(
-                        find_successor_request)
+                        find_successor_request, timeout=5)
 
                     self.finger_table[i] = Node(find_successor_response.id,
                                                 find_successor_response.ip,
@@ -177,13 +187,14 @@ class Node:
                     if finger_id > self.node_id or finger_id < id:
                         return self.finger_table[i]
         # If no valid finger is found, return self to signify this node handles the request
+
+        print("Returning self as closest preceding finger.")
         return self
 
     def update_other_nodes(self):
         """
         Update other nodes in the ring about the new node
         """
-
         for i in range(self.m):
             # go_back_n part
             update_id = self.node_id - 2**i
@@ -208,7 +219,7 @@ class Node:
 
                 update_finger_table_request = chord_pb2.UpdateFingerTableRequest(
                     node=self_node_info, i=i, for_leave=False)
-                pred_stub.UpdateFingerTable(update_finger_table_request)
+                pred_stub.UpdateFingerTable(update_finger_table_request, timeout=5)
 
         print("Updated other nodes successfully.")
 
@@ -224,9 +235,20 @@ class Node:
             find_successor_request = chord_pb2.FindSuccessorRequest(
                 id=finger_start)
             find_successor_response = stub.FindSuccessor(
-                find_successor_request)
+                find_successor_request, timeout=5)
             self.finger_table[i] = Node(find_successor_response.id,
                                         find_successor_response.ip,
                                         find_successor_response.port, self.m)
 
         print("Fingers fixed successfully.")
+
+    def stabilize(self):
+
+        stub, channel = create_stub(self.ip, self.port)
+        print("Starting stabilization")
+        with channel:
+            set_successor_request = chord_pb2.NodeInfo(
+                id=self.successor.node_id, ip=self.successor.ip, port=self.successor.port)
+            stub.SetSuccessor(set_successor_request, timeout=5)
+
+        print("finished stabilization")

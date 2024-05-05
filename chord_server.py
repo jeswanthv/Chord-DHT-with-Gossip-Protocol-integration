@@ -47,6 +47,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
                 pass
 
             i += 1
+        
+        return chord_pb2.Empty()
 
 
     def GetPredecessor(self, request, context):
@@ -82,9 +84,22 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
             # might need to fix this for wrap around case
             # while not (current_node.node_id < id_to_find <= current_node.successor.node_id):
+            current_node_stub, current_node_channel = create_stub(
+                current_node.ip, current_node.port)
+           
             while not (is_in_between(id_to_find, current_node.node_id, current_node.successor.node_id, 'right_open')):
                 current_node = current_node.closest_preceding_finger(
                     id_to_find)
+                current_node_stub, current_node_channel = create_stub(
+                    current_node.ip, current_node.port)
+                with current_node_channel:
+                    get_successor_request = chord_pb2.Empty()
+                    get_successor_response = current_node_stub.GetSuccessor(
+                        get_successor_request)
+                    current_node.successor = Node(
+                        get_successor_response.id, get_successor_response.ip, get_successor_response.port, self.node.m)
+                print("current_node", current_node)
+                print("current_node.successor", current_node.successor)
 
             response = chord_pb2.NodeInfo()
             response.id = current_node.node_id
@@ -190,13 +205,13 @@ def start_server():
             bootstrap_node = Node(sha1_hash(
                 f"{bootstrap_ip}:{bootstrap_port}", m), bootstrap_ip, bootstrap_port, m)
 
-        chord_node.join_chord_ring(bootstrap_node)
-
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         chord_pb2_grpc.add_ChordServiceServicer_to_server(
             ChordNodeServicer(chord_node), server)
         server.add_insecure_port(f"[::]:{node_port}")
         server.start()
+        chord_node.join_chord_ring(bootstrap_node)
+
         print(f"Server started at {node_ip_address}:{node_port}")
 
         def run_input_loop():
