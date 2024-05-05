@@ -2,6 +2,7 @@ import grpc
 from proto import chord_pb2
 from proto import chord_pb2_grpc
 from utils import create_stub, is_in_between
+import random
 
 
 class Node:
@@ -15,6 +16,7 @@ class Node:
         self.successor = None
         self.finger_table = {i: None for i in range(m)}
         self.successor_list = [self for _ in range(3)]
+        self.store = {}
 
     def __str__(self):
         return f"Node {self.node_id} at {self.ip}:{self.port}"
@@ -74,6 +76,31 @@ class Node:
             self.initialize_finger_table(bootstrap_node)
             print("Finger table initialized successfully.")
             print("Starting to update others.")
+            self.update_other_nodes()
+            print("Successfully updated others about this join.")
+
+            print("Updating this node's successor's predecessor pointer to this node.")
+            successor_stub, successor_channel = create_stub(
+                self.successor.ip, self.successor.port)
+
+            with successor_channel:
+                set_predecessor_request = chord_pb2.NodeInfo(
+                    id=self.node_id, ip=self.ip, port=self.port)
+                successor_stub.SetPredecessor(set_predecessor_request)
+
+            print("Successfully updated the successor's predecessor pointer.")
+
+            print("Updating this node's predecessor's successor pointer to this node.")
+            predecessor_stub, predecessor_channel = create_stub(
+                self.predecessor.ip, self.predecessor.port)
+            
+            with predecessor_channel:
+                set_successor_request = chord_pb2.NodeInfo(
+                    id=self.node_id, ip=self.ip, port=self.port)
+                predecessor_stub.SetSuccessor(set_successor_request)
+
+            print("Successfully updated the predecessor's successor pointer.")
+
 
     def initialize_finger_table(self, bootstrap_node):
         """
@@ -184,3 +211,22 @@ class Node:
                 pred_stub.UpdateFingerTable(update_finger_table_request)
 
         print("Updated other nodes successfully.")
+
+    def fix_fingers(self):
+        """
+        Fix the finger table of the node
+        """
+
+        i = random.randint(0, self.m - 1)
+        finger_start = (self.node_id + 2**i) % (2**self.m)
+        stub, channel = create_stub(self.ip, self.port)
+        with channel:
+            find_successor_request = chord_pb2.FindSuccessorRequest(
+                id=finger_start)
+            find_successor_response = stub.FindSuccessor(
+                find_successor_request)
+            self.finger_table[i] = Node(find_successor_response.id,
+                                        find_successor_response.ip,
+                                        find_successor_response.port, self.m)
+
+        print("Fingers fixed successfully.")
