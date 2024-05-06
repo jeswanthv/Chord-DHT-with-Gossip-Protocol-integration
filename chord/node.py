@@ -1,11 +1,10 @@
 import grpc
 
-import utils
 from proto import chord_pb2
 from proto import chord_pb2_grpc
-from utils import create_stub, is_in_between
+from utils import create_stub, is_in_between, sha1_hash
 import random
-
+import ast
 
 class Node:
     def __init__(self, node_id: int, ip: str, port: int, m):
@@ -60,7 +59,6 @@ class Node:
                 print("Found predecessor node {}.".format(self.predecessor))
             
             self_stub, self_channel = create_stub(self.ip, self.port)
-            print("HEEERE")
             with self_channel:
                 set_predecessor_request = chord_pb2.NodeInfo(
                     id= self.predecessor.node_id, ip=self.predecessor.ip, port=self.predecessor.port
@@ -86,7 +84,6 @@ class Node:
                     return
             
             self_stub, self_channel = create_stub(self.ip, self.port)
-            print("HEEERE2")
             with self_channel:
                 set_successor_request = chord_pb2.NodeInfo(
                     id= self.successor.node_id, ip=self.successor.ip, port=self.successor.port
@@ -137,6 +134,12 @@ class Node:
                 predecessor_stub.SetSuccessor(set_successor_request, timeout=5)
 
             print("Successfully updated the predecessor's successor pointer.")
+
+            print("Initializing hash table to get this node's keys.")
+            self.initialize_store()
+            print("Successfully initialized hash table.")
+
+            print("Starting replication to successors.")
 
     def i_start(self, node_id, i) -> int:
         """
@@ -200,12 +203,12 @@ class Node:
         """
         for i in range(self.m):
             # go_back_n part
-            print("CAME IN HERE", i)
+            # print("CAME IN HERE", i)
             update_id = self.go_back_n(self.node_id, 2**(i))
             # update_id = self.node_id - 2**i
             # if update_id < 0:
             #     update_id = self.node_id + (2**self.m - 2**i)
-            print("Update id: ", update_id)
+            # print("Update id: ", update_id)
             # exit(0)
             stub, channel = create_stub(self.ip, self.port)
 
@@ -224,9 +227,7 @@ class Node:
 
                 update_finger_table_request = chord_pb2.UpdateFingerTableRequest(
                     node=self_node_info, i=i, for_leave=False)
-                print("BBBB")
                 pred_stub.UpdateFingerTable(update_finger_table_request, timeout=5)
-                print("CCCC")
 
         print("Updated other nodes successfully.")
 
@@ -260,19 +261,46 @@ class Node:
 
         print("finished stabilization")
 
+    def initialize_store(self):
+
+        successor_stub, successor_channel = create_stub(
+            self.successor.ip, self.successor.port)
+        with successor_channel:
+            get_transfer_data_request = chord_pb2.GetTransferDataRequest(
+                id=self.node_id)
+            get_transfer_data_response = successor_stub.GetTransferData(get_transfer_data_request, timeout=5)
+            
+            data = get_transfer_data_response.data
+
+            
+        self.store = ast.literal_eval(data)
+
+
     def set(self ,key):
-        print(f"Node.py set() called for key --> {key}")
-        hashed_key = utils.sha1_hash(key,10)
-        print(f"Node.py set() the hashed key value --> {hashed_key}")
+        # print(f"Node.py set() called for key --> {key}")
+        hashed_key = sha1_hash(key, self.m)
+        # print(f"Node.py set() the hashed key value --> {hashed_key}")
         stub,channel = create_stub(self.ip,self.port)
         with channel:
             find_successor_request = chord_pb2.FindSuccessorRequest(id=hashed_key)
-            print(f"Node.py set() called by {self.node_id} ,possible node where the value would be set is {stub.FindSuccessor(find_successor_request ,timeout=5)}")
+            find_successor_response = stub.FindSuccessor(find_successor_request, timeout=5)
+            # print(f"Node.py set() called by {self.node_id} ,possible node where the value would be set is {stub.FindSuccessor(find_successor_request ,timeout=5)}")
             #todo added by suryakangeyan -->   call set_key here to set the value to the particular  node
+        
+        successor_stub, successor_channel = create_stub(    
+            find_successor_response.ip, find_successor_response.port)
+        
+        with successor_channel:
+            set_key_request = chord_pb2.SetKeyRequest(
+                key=int(key)
+            )
+            set_key_response = successor_stub.SetKey(set_key_request, timeout=5)
+        
+        return set_key_response
 
     def get(self,key):
         print(f"Node.py get() called for key --> {key}")
-        hashed_key = utils.sha1_hash(key, 10)
+        hashed_key = sha1_hash(key, self.m)
         print(f"Node.py get() the hashed key value --> {hashed_key}")
         stub, channel = create_stub(self.ip, self.port)
         with channel:

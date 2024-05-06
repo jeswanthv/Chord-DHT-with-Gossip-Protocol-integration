@@ -15,12 +15,10 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
     def GetSuccessor(self, request, context):
 
-        print("GetSuccessor rpc called with port", self.node.port)
         response = chord_pb2.NodeInfo()
         response.id = self.node.successor.node_id
         response.ip = self.node.successor.ip
         response.port = self.node.successor.port
-        print("Returning successor", response)
         return response
 
     def SetSuccessor(self, request, context):
@@ -110,7 +108,6 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
     def FindSuccessor(self, request, context):
         """
         FindSuccessor RPC call to find the successor node of a given node_id.
-        LINEAR SEARCH IMPLEMENTATION
         """
         id_to_find = request.id
 
@@ -158,8 +155,6 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         for i in range(self.node.m-1, -1, -1):
             if is_in_between(self.node.finger_table[i].node_id, self.node.node_id, id_to_find, 'closed'):
                 # print("TRUE FOR IDENTIFIER", id_to_find)
-                print("i=", i, self.node.finger_table[i], [
-                      self.node.node_id, id_to_find])
 
                 response.id = self.node.finger_table[i].node_id
                 response.ip = self.node.finger_table[i].ip
@@ -230,6 +225,29 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         response = chord_pb2.GetTransferDataResponse()
         response.data = str(transfer_data)
         return response
+
+    def SetKey(self, request, context):
+        key = request.key
+        self.node.store[key] = True
+        if self.node.node_id != self.node.successor.node_id:
+            pass # TODO
+
+        return chord_pb2.NodeInfo(id=self.node.node_id, ip=self.node.ip, port=self.node.port)
+
+            
+        # value = request.value
+        # key_hash = sha1_hash(key, self.node.m)
+        # if is_in_between(key_hash, self.node.predecessor.node_id, self.node.node_id, 'o'):
+            # self.node.store[key_hash] = value
+            # return chord_pb2.SetKeyResponse(node_id=self.node.node_id, connection_string=f"{self.node.ip}:{self.node.port}")
+        # else:
+            # Ask the successor to set the key
+            # succ_stub, succ_channel = create_stub(
+            #     self.node.successor.ip, self.node.successor.port)
+            # with succ_channel:
+            #     set_key_request = chord_pb2.SetKeyRequest(
+            #         key=key, value=value)
+            #     return succ_stub.SetKey(set_key_request
     
 
 
@@ -262,7 +280,7 @@ def start_server():
         def run_input_loop():
             while True:
                 inp = input(
-                    "Select an option:\n1. Print Finger Table\n2. Print Successor\n3. Print Predecessor\n4. Leave chord ring\n5. Quit\n")
+                    "Select an option:\n1. Print Finger Table\n2. Print Successor\n3. Print Predecessor\n4. Leave chord ring\n5. Set Key\n6. Show Store\n7. Quit\n")
                 if inp == "1":
                     print(chord_node.finger_table)
                 elif inp == "2":
@@ -275,8 +293,10 @@ def start_server():
                     key = input("Enter the key to set: ")
                     print("Setting key:", key)
                     result = chord_node.set(key)  # Assuming set_key is the correct method
-                    print("Key set. Node ID and connection string:", result)
-                elif inp == "6":
+                    print("Key set. Node ID:", result.id)
+                elif inp =="6":
+                    print(chord_node.store)
+                elif inp == "7":
                     print("Shutting down the server.")
                     server.stop(0)
                     break

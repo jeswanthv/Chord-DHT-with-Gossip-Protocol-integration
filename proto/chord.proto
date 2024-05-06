@@ -50,6 +50,19 @@ message GetTransferDataResponse {
     string data = 1;
 }
 
+message GetKeyRequest {
+    int32 key = 1;
+}
+
+message GetKeyResponse {
+    string data = 1;
+}
+
+message SetKeyRequest {
+    int32 key = 1;
+    // string data = 2;
+}
+
 service ChordService {
 
     // RPC to get the successor of a node
@@ -78,5 +91,9 @@ service ChordService {
     rpc FindClosestPrecedingFinger(FindClosestPrecedingFingerRequest) returns (NodeInfo) {}
 
     rpc GetTransferData(GetTransferDataRequest) returns (GetTransferDataResponse) {}
+
+    rpc GetKey(GetKeyRequest) returns (NodeInfo) {}  
+
+    rpc SetKey(SetKeyRequest) returns (NodeInfo) {}
     
 }

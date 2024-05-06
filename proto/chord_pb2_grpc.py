@@ -89,6 +89,16 @@ class ChordServiceStub(object):
                 request_serializer=proto_dot_chord__pb2.GetTransferDataRequest.SerializeToString,
                 response_deserializer=proto_dot_chord__pb2.GetTransferDataResponse.FromString,
                 _registered_method=True)
+        self.GetKey = channel.unary_unary(
+                '/chord.ChordService/GetKey',
+                request_serializer=proto_dot_chord__pb2.GetKeyRequest.SerializeToString,
+                response_deserializer=proto_dot_chord__pb2.NodeInfo.FromString,
+                _registered_method=True)
+        self.SetKey = channel.unary_unary(
+                '/chord.ChordService/SetKey',
+                request_serializer=proto_dot_chord__pb2.SetKeyRequest.SerializeToString,
+                response_deserializer=proto_dot_chord__pb2.NodeInfo.FromString,
+                _registered_method=True)
 
 
 class ChordServiceServicer(object):
@@ -161,6 +171,18 @@ class ChordServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetKey(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SetKey(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_ChordServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -213,6 +235,16 @@ def add_ChordServiceServicer_to_server(servicer, server):
                     servicer.GetTransferData,
                     request_deserializer=proto_dot_chord__pb2.GetTransferDataRequest.FromString,
                     response_serializer=proto_dot_chord__pb2.GetTransferDataResponse.SerializeToString,
+            ),
+            'GetKey': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetKey,
+                    request_deserializer=proto_dot_chord__pb2.GetKeyRequest.FromString,
+                    response_serializer=proto_dot_chord__pb2.NodeInfo.SerializeToString,
+            ),
+            'SetKey': grpc.unary_unary_rpc_method_handler(
+                    servicer.SetKey,
+                    request_deserializer=proto_dot_chord__pb2.SetKeyRequest.FromString,
+                    response_serializer=proto_dot_chord__pb2.NodeInfo.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -484,6 +516,60 @@ class ChordService(object):
             '/chord.ChordService/GetTransferData',
             proto_dot_chord__pb2.GetTransferDataRequest.SerializeToString,
             proto_dot_chord__pb2.GetTransferDataResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetKey(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chord.ChordService/GetKey',
+            proto_dot_chord__pb2.GetKeyRequest.SerializeToString,
+            proto_dot_chord__pb2.NodeInfo.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SetKey(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chord.ChordService/SetKey',
+            proto_dot_chord__pb2.SetKeyRequest.SerializeToString,
+            proto_dot_chord__pb2.NodeInfo.FromString,
             options,
             channel_credentials,
             insecure,
