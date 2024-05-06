@@ -3,6 +3,7 @@ from proto import chord_pb2
 from proto import chord_pb2_grpc
 import threading
 from concurrent import futures
+import ast
 
 from utils import sha1_hash, get_args, create_stub, is_in_between
 from chord.node import Node
@@ -68,6 +69,7 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
                         print("Will try again updating the predecessor.")
                     
                     # TODO - implement replication bit
+                    self.node.replicate_keys_to_successor()
             i += 1
 
         return chord_pb2.Empty()
@@ -252,7 +254,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         key = request.key
         self.node.store[key] = True
         if self.node.node_id != self.node.successor.node_id:
-            pass  # TODO - implement replication bit
+              # TODO - implement replication bit
+              self.node.replicate_single_key_to_successor(key)
 
         return chord_pb2.NodeInfo(id=self.node.node_id, ip=self.node.ip, port=self.node.port)
 
@@ -262,6 +265,15 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
             return chord_pb2.NodeInfo(id=self.node.node_id, ip=self.node.ip, port=self.node.port)
         else:
             return chord_pb2.NodeInfo(id=None, ip=None, port=None)
+        
+    def ReceiveKeysBeforeLeave(self, request, context):
+
+        store_received = ast.literal_eval(request.store)
+
+        for key in store_received:
+            self.node.store[key] = store_received[key]
+
+        return chord_pb2.Empty()
 
 
 def start_server():

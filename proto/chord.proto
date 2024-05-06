@@ -63,6 +63,11 @@ message SetKeyRequest {
     // string data = 2;
 }
 
+message ReceiveKeysBeforeLeaveRequest {
+    string store = 1;
+}
+
+
 service ChordService {
 
     // RPC to get the successor of a node
@@ -95,5 +100,7 @@ service ChordService {
     rpc GetKey(GetKeyRequest) returns (NodeInfo) {}  
 
     rpc SetKey(SetKeyRequest) returns (NodeInfo) {}
+
+    rpc ReceiveKeysBeforeLeave(ReceiveKeysBeforeLeaveRequest) returns (Empty) {}
     
 }
