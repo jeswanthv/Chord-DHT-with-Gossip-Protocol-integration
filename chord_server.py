@@ -214,6 +214,25 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         return chord_pb2.Empty()
 
 
+    def GetTransferData(self, request, context):
+        node_id = request.id
+        transfer_data = {}
+        keys_to_be_deleted = []
+
+        for key in self.node.store:
+            if is_in_between(key, self.node.node_id, node_id, 'o'):
+                transfer_data[key] = True
+                keys_to_be_deleted.append(key)
+
+        for key in keys_to_be_deleted:
+            del self.node.store[key]
+
+        response = chord_pb2.GetTransferDataResponse()
+        response.data = str(transfer_data)
+        return response
+    
+
+
 def start_server():
     try:
         args = get_args()

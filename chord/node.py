@@ -3,7 +3,7 @@ from proto import chord_pb2
 from proto import chord_pb2_grpc
 from utils import create_stub, is_in_between
 import random
-
+import ast
 
 class Node:
     def __init__(self, node_id: int, ip: str, port: int, m):
@@ -136,6 +136,12 @@ class Node:
 
             print("Successfully updated the predecessor's successor pointer.")
 
+            print("Initializing hash table to get this node's keys.")
+            self.initialize_store()
+            print("Successfully initialized hash table.")
+
+            print("Starting replication to successors.")
+
     def i_start(self, node_id, i) -> int:
         """
         Author: Adarsh Trivedi
@@ -261,19 +267,6 @@ class Node:
 
     def leave(self):
 
-        # logger.info("Starting to leave the system.")
-        # logger.info("Setting predecessor's [{}] successor to this node's successor [{}].".
-        #             format(self.get_predecessor(), self.get_successor()))
-        # self.get_xml_client(self.get_predecessor()).set_successor(self.get_successor())
-        # logger.info("Setting successor's [{}] predecessor to this node's predecessor [{}].".
-        #             format(self.get_successor(), self.get_predecessor()))
-        # self.get_xml_client(self.get_successor()).set_predecessor(self.get_predecessor())
-        # logger.info("Updating 1st finger (successor) to this node's successor.")
-        # self.get_xml_client(self.get_predecessor()).update_finger_table(self.get_successor(), 0, True)
-        # logger.info("Transferring keys to responsible node.")
-        # self.transfer_before_leave()
-        # logger.info("Node {} left the system successfully.".format(self.get_node_id()))
-
         print("Starting to leave the system.")
         print("Setting predecessor's [{}] successor to this node's successor [{}].".
                     format(self.predecessor, self.successor))
@@ -307,3 +300,17 @@ class Node:
         # self.transfer_before_leave()
         print("Node {} left the system successfully.".format(self.node_id))
 
+
+    def initialize_store(self):
+
+        successor_stub, successor_channel = create_stub(
+            self.successor.ip, self.successor.port)
+        with successor_channel:
+            get_transfer_data_request = chord_pb2.GetTransferDataRequest(
+                id=self.node_id)
+            get_transfer_data_response = successor_stub.GetTransferData(get_transfer_data_request, timeout=5)
+            
+            data = get_transfer_data_response.data
+
+            
+        self.store = ast.literal_eval(data)

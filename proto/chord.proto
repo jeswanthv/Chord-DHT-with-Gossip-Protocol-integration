@@ -42,6 +42,14 @@ message UpdateFingerTableRequest {
     bool for_leave = 3;
 }
 
+message GetTransferDataRequest {
+    int32 id = 1;
+}
+
+message GetTransferDataResponse {
+    string data = 1;
+}
+
 service ChordService {
 
     // RPC to get the successor of a node
@@ -68,5 +76,7 @@ service ChordService {
     rpc UpdateFingerTable(UpdateFingerTableRequest) returns (Empty) {}
 
     rpc FindClosestPrecedingFinger(FindClosestPrecedingFingerRequest) returns (NodeInfo) {}
+
+    rpc GetTransferData(GetTransferDataRequest) returns (GetTransferDataResponse) {}
     
 }
