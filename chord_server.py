@@ -32,19 +32,42 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         i = 1
         while i < 3:
             intermediate_node = self.node.successor_list[i-1]
-            if intermediate_node is not None:
-                intermediate_stub, intermediate_channel = create_stub(
-                    intermediate_node.ip, intermediate_node.port)
-                with intermediate_channel:
-                    get_successor_request = chord_pb2.Empty()
-                    get_successor_response = intermediate_stub.GetSuccessor(
-                        get_successor_request)
-                    self.node.successor_list[i] = Node(
-                        get_successor_response.id, get_successor_response.ip, get_successor_response.port, self.node.m)
-            else:
-                # TODO handle node crash
-                pass
+            try:
+                if intermediate_node is not None:
+                    intermediate_stub, intermediate_channel = create_stub(
+                        intermediate_node.ip, intermediate_node.port)
+                    with intermediate_channel:
+                        get_successor_request = chord_pb2.Empty()
+                        get_successor_response = intermediate_stub.GetSuccessor(
+                            get_successor_request)
+                        self.node.successor_list[i] = Node(
+                            get_successor_response.id, get_successor_response.ip, get_successor_response.port, self.node.m)
+            except Exception as e:
+                print("BOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOM")
+                self.node.successor_list[i-1] = self.node.successor_list[i]
+                if i == 1:
+                    print("Suspect a crash for node [{}].".format(
+                        self.node.successor))
+                    self.node.successor = self.node.successor_list[i]
 
+                    self_stub, self_channel = create_stub(
+                        self.node.ip, self.node.port)
+                    with self_channel:
+                        update_finger_table_request = chord_pb2.UpdateFingerTableRequest(
+                            node=chord_pb2.NodeInfo(id=self.node.successor.node_id, ip=self.node.successor.ip, port=self.node.successor.port), i=0, for_leave=True)
+
+                    try:
+                        successor_stub, successor_channel = create_stub(
+                            self.node.successor.ip, self.node.successor.port)
+                        with successor_channel:
+                            set_predecessor_request = chord_pb2.NodeInfo(
+                                id=self.node.node_id, ip=self.node.ip, port=self.node.port)
+                            successor_stub.SetPredecessor(
+                                set_predecessor_request)
+                    except Exception as e:
+                        print("Will try again updating the predecessor.")
+                    
+                    # TODO - implement replication bit
             i += 1
 
         return chord_pb2.Empty()
@@ -205,9 +228,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
                 except Exception as e:
                     print(f"Error updating finger table: {e}")
                     continue
-            
-        return chord_pb2.Empty()
 
+        return chord_pb2.Empty()
 
     def GetTransferData(self, request, context):
         node_id = request.id
@@ -230,25 +252,16 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         key = request.key
         self.node.store[key] = True
         if self.node.node_id != self.node.successor.node_id:
-            pass # TODO
+            pass  # TODO - implement replication bit
 
         return chord_pb2.NodeInfo(id=self.node.node_id, ip=self.node.ip, port=self.node.port)
 
-            
-        # value = request.value
-        # key_hash = sha1_hash(key, self.node.m)
-        # if is_in_between(key_hash, self.node.predecessor.node_id, self.node.node_id, 'o'):
-            # self.node.store[key_hash] = value
-            # return chord_pb2.SetKeyResponse(node_id=self.node.node_id, connection_string=f"{self.node.ip}:{self.node.port}")
-        # else:
-            # Ask the successor to set the key
-            # succ_stub, succ_channel = create_stub(
-            #     self.node.successor.ip, self.node.successor.port)
-            # with succ_channel:
-            #     set_key_request = chord_pb2.SetKeyRequest(
-            #         key=key, value=value)
-            #     return succ_stub.SetKey(set_key_request
-    
+    def GetKey(self, request, context):
+        key = request.key
+        if key in self.node.store:
+            return chord_pb2.NodeInfo(id=self.node.node_id, ip=self.node.ip, port=self.node.port)
+        else:
+            return chord_pb2.NodeInfo(id=None, ip=None, port=None)
 
 
 def start_server():
@@ -280,23 +293,27 @@ def start_server():
         def run_input_loop():
             while True:
                 inp = input(
-                    "Select an option:\n1. Print Finger Table\n2. Print Successor\n3. Print Predecessor\n4. Leave chord ring\n5. Set Key\n6. Show Store\n7. Quit\n")
+                    "Select an option:\n1. Print Finger Table\n2. Print Successor\n3. Print Predecessor\n4. Leave chord ring\n5. Set Key\n6. Get Key\n7. Show Store\n8. Quit\n")
                 if inp == "1":
                     print(chord_node.finger_table)
                 elif inp == "2":
                     print(chord_node.successor)
                 elif inp == "3":
                     print(chord_node.predecessor)
-                elif inp =="4":
+                elif inp == "4":
                     chord_node.leave()
-                elif inp =="5":
+                elif inp == "5":
                     key = input("Enter the key to set: ")
-                    print("Setting key:", key)
-                    result = chord_node.set(key)  # Assuming set_key is the correct method
+                    # Assuming set_key is the correct method
+                    result = chord_node.set(key)
                     print("Key set. Node ID:", result.id)
-                elif inp =="6":
-                    print(chord_node.store)
+                elif inp == "6":
+                    key = input("Enter the key to get: ")
+                    result = chord_node.get(key)
+                    print("Key found at node ID:", result.id)
                 elif inp == "7":
+                    print(chord_node.store)
+                elif inp == "8":
                     print("Shutting down the server.")
                     server.stop(0)
                     break

@@ -140,6 +140,7 @@ class Node:
             print("Successfully initialized hash table.")
 
             print("Starting replication to successors.")
+            # TODO - Implement replication bit
 
     def i_start(self, node_id, i) -> int:
         """
@@ -299,15 +300,27 @@ class Node:
         return set_key_response
 
     def get(self,key):
-        print(f"Node.py get() called for key --> {key}")
+        # print(f"Node.py get() called for key --> {key}")
         hashed_key = sha1_hash(key, self.m)
-        print(f"Node.py get() the hashed key value --> {hashed_key}")
+        # print(f"Node.py get() the hashed key value --> {hashed_key}")
         stub, channel = create_stub(self.ip, self.port)
         with channel:
             find_successor_request = chord_pb2.FindSuccessorRequest(id=hashed_key)
-            print(
-                f"Node.py set() called by {self.node_id} ,possible node where the value would be set is {stub.FindSuccessor(find_successor_request, timeout=5)}")
+            # print(
+                # f"Node.py set() called by {self.node_id} ,possible node where the value would be set is {stub.FindSuccessor(find_successor_request, timeout=5)}")
             # todo added by suryakangeyan -->   call get_key here to set the value to the particular  node
+            find_successor_response = stub.FindSuccessor(find_successor_request, timeout=5)
+
+        successor_stub, successor_channel = create_stub(
+            find_successor_response.ip, find_successor_response.port)
+        
+        with successor_channel:
+            get_key_request = chord_pb2.GetKeyRequest(
+                key=int(key)
+            )
+            get_key_response = successor_stub.GetKey(get_key_request, timeout=5)
+
+        return get_key_response
 
     def set_key(self,key):
         self.store[key] = True # hint added by suryakangeyan -->   call get_key here to set the value to the particular node
