@@ -315,7 +315,7 @@ class Node:
 
         with successor_channel:
             set_key_request = chord_pb2.SetKeyRequest(
-                key=int(key)
+                key=hashed_key
             )
             set_key_response = successor_stub.SetKey(
                 set_key_request, timeout=5)
@@ -341,7 +341,7 @@ class Node:
 
         with successor_channel:
             get_key_request = chord_pb2.GetKeyRequest(
-                key=int(key)
+                key=hashed_key
             )
             get_key_response = successor_stub.GetKey(
                 get_key_request, timeout=5)

@@ -67,6 +67,13 @@ message ReceiveKeysBeforeLeaveRequest {
     string store = 1;
 }
 
+message DownloadFileRequest {
+    string filename = 1;
+}
+
+message DownloadFileResponse {
+    bytes buffer = 1;
+}
 
 service ChordService {
 
@@ -102,5 +109,7 @@ service ChordService {
     rpc SetKey(SetKeyRequest) returns (NodeInfo) {}
 
     rpc ReceiveKeysBeforeLeave(ReceiveKeysBeforeLeaveRequest) returns (Empty) {}
+
+    rpc DownloadFile(DownloadFileRequest) returns (stream DownloadFileResponse) {}
     
 }

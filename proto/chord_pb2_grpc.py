@@ -104,6 +104,11 @@ class ChordServiceStub(object):
                 request_serializer=proto_dot_chord__pb2.ReceiveKeysBeforeLeaveRequest.SerializeToString,
                 response_deserializer=proto_dot_chord__pb2.Empty.FromString,
                 _registered_method=True)
+        self.DownloadFile = channel.unary_stream(
+                '/chord.ChordService/DownloadFile',
+                request_serializer=proto_dot_chord__pb2.DownloadFileRequest.SerializeToString,
+                response_deserializer=proto_dot_chord__pb2.DownloadFileResponse.FromString,
+                _registered_method=True)
 
 
 class ChordServiceServicer(object):
@@ -194,6 +199,12 @@ class ChordServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def DownloadFile(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_ChordServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -261,6 +272,11 @@ def add_ChordServiceServicer_to_server(servicer, server):
                     servicer.ReceiveKeysBeforeLeave,
                     request_deserializer=proto_dot_chord__pb2.ReceiveKeysBeforeLeaveRequest.FromString,
                     response_serializer=proto_dot_chord__pb2.Empty.SerializeToString,
+            ),
+            'DownloadFile': grpc.unary_stream_rpc_method_handler(
+                    servicer.DownloadFile,
+                    request_deserializer=proto_dot_chord__pb2.DownloadFileRequest.FromString,
+                    response_serializer=proto_dot_chord__pb2.DownloadFileResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -613,6 +629,33 @@ class ChordService(object):
             '/chord.ChordService/ReceiveKeysBeforeLeave',
             proto_dot_chord__pb2.ReceiveKeysBeforeLeaveRequest.SerializeToString,
             proto_dot_chord__pb2.Empty.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DownloadFile(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(
+            request,
+            target,
+            '/chord.ChordService/DownloadFile',
+            proto_dot_chord__pb2.DownloadFileRequest.SerializeToString,
+            proto_dot_chord__pb2.DownloadFileResponse.FromString,
             options,
             channel_credentials,
             insecure,

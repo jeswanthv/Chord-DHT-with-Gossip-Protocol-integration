@@ -5,7 +5,7 @@ import threading
 from concurrent import futures
 import ast
 
-from utils import sha1_hash, get_args, create_stub, is_in_between
+from utils import sha1_hash, get_args, create_stub, is_in_between, download_file
 from chord.node import Node
 
 
@@ -274,6 +274,19 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
             self.node.store[key] = store_received[key]
 
         return chord_pb2.Empty()
+    
+    def DownloadFile(self, request, context):
+        file_name = request.filename
+        try:
+            with open(file_name, 'rb') as f:
+                while True:
+                    chunk = f.read(1024)
+                    if not chunk:
+                        break
+                    yield chord_pb2.DownloadFileResponse(buffer=chunk)
+        except Exception as e:
+            print(f"Error downloading file: {e}")
+            return
 
 
 def start_server():
@@ -305,7 +318,7 @@ def start_server():
         def run_input_loop():
             while True:
                 inp = input(
-                    "Select an option:\n1. Print Finger Table\n2. Print Successor\n3. Print Predecessor\n4. Leave chord ring\n5. Set Key\n6. Get Key\n7. Show Store\n8. Quit\n")
+                    "Select an option:\n1. Print Finger Table\n2. Print Successor\n3. Print Predecessor\n4. Leave chord ring\n5. Set Key\n6. Get Key\n7. Show Store\n8. Download File\n9. Quit\n")
                 if inp == "1":
                     print(chord_node.finger_table)
                 elif inp == "2":
@@ -322,10 +335,18 @@ def start_server():
                 elif inp == "6":
                     key = input("Enter the key to get: ")
                     result = chord_node.get(key)
-                    print("Key found at node ID:", result.id)
+                    print("Key found at node ID:", result)
                 elif inp == "7":
                     print(chord_node.store)
                 elif inp == "8":
+                    key = input("Enter the filename to download: ")
+                    # get node id of the key
+                    get_result = chord_node.get(key)
+                    file_location_port = get_result.port
+                    print("NEED TO DOWNLOAD FROM NODE", get_result)
+                    # file_location_ip = chord_node.get(key).ip
+                    download_file(key, file_location_port)
+                elif inp == "9":
                     print("Shutting down the server.")
                     server.stop(0)
                     break
