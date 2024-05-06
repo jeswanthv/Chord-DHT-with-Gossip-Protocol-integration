@@ -55,12 +55,12 @@ message GetKeyRequest {
 }
 
 message GetKeyResponse {
-    string data = 1;
+    bytes file = 1;
 }
 
 message SetKeyRequest {
     int32 key = 1;
-    // string data = 2;
+    bytes file = 2;
 }
 
 service ChordService {

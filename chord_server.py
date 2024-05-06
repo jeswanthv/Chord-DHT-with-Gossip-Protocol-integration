@@ -3,7 +3,7 @@ from proto import chord_pb2
 from proto import chord_pb2_grpc
 import threading
 from concurrent import futures
-
+import os
 from utils import sha1_hash, get_args, create_stub, is_in_between
 from chord.node import Node
 
@@ -250,6 +250,14 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
     def SetKey(self, request, context):
         key = request.key
+        file = request.file
+        print(f'Chord_server.py  file data received is {file}')
+        file_path = os.path.join(PATH_TO_PROJECT_FOLDER, f'{self.node.node_id} dummy_file')
+        try:
+            with open(file_path, 'wb') as file:
+                file.write(request.file)
+        except Exception as e:
+            print(f"Failed to process file data: {e}")
         self.node.store[key] = True
         if self.node.node_id != self.node.successor.node_id:
             pass  # TODO - implement replication bit
