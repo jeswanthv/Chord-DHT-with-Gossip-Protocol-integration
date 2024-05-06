@@ -26,7 +26,7 @@ class Node:
         Join an existing node in the chord ring
         """
 
-        print("Starting join ....")
+        print(f"Node.py join_chord_ring Starting join of node {self.node_id} with bootstrap node {bootstrap_node}")
 
         if not bootstrap_node:
             print("No bootstrap server provided. Starting a new chord ring.")
@@ -46,6 +46,7 @@ class Node:
                 try:
                     find_predecessor_request = chord_pb2.FindPredecessorRequest(
                         id=self.node_id)
+                    print(f"Node.py find predecessor called for id {self.node_id}")
                     find_predecessor_response = bootstrap_stub.FindPredecessor(
                         find_predecessor_request, timeout=5)
                 except Exception as e:
@@ -78,6 +79,7 @@ class Node:
                     get_successor_request = chord_pb2.Empty()
                     get_successor_response = predecessor_stub.GetSuccessor(
                         get_successor_request, timeout=5)
+                    # print(f"Node.py -  setting the current node as the predecessor's {self.predecessor.node_id} successor as {self.successor.node_id}")
                     self.successor = Node(get_successor_response.id,
                                           get_successor_response.ip,
                                           get_successor_response.port, self.m)
@@ -85,11 +87,11 @@ class Node:
                 except Exception as e:
                     print("Error connecting to the predecessor node: {}".format(e))
                     return
-            return
+            # return  todo uncomment the return
             self.initialize_finger_table(bootstrap_node)
             print("Finger table initialized successfully.")
             print("Starting to update others.")
-            self.update_other_nodes()
+            # self.update_other_nodes()  todo
             print("Successfully updated others about this join.")
 
             print("Updating this node's successor's predecessor pointer to this node.")
@@ -198,15 +200,55 @@ class Node:
         # print("Returning self as closest preceding finger.")
         # return self
 
+    # todo : this is th eoriginal logic  need to verify it
+    # def update_other_nodes(self):
+    #     """
+    #     Update other nodes in the ring about the new node
+    #     """
+    #     for i in range(self.m):
+    #         # go_back_n part
+    #
+    #         print("CAME IN HERE", i)
+    #         update_id = self.node_id - 2**i
+    #         if update_id < 0:
+    #             update_id = self.node_id + (2 ** self.m - 2 ** i)
+    #
+    #         stub, channel = create_stub(self.ip, self.port)
+    #
+    #         with channel:
+    #             find_pred_request = chord_pb2.FindPredecessorRequest(
+    #                 id=update_id)
+    #             find_pred_response = stub.FindPredecessor(find_pred_request)
+    #             pred_ip = find_pred_response.ip
+    #             pred_port = find_pred_response.port
+    #             pred_id = find_pred_response.id
+    #
+    #         pred_stub, pred_channel = create_stub(pred_ip, pred_port)
+    #
+    #         with pred_channel:
+    #             self_node_info = chord_pb2.NodeInfo(
+    #                 id=self.node_id, ip=self.ip, port=self.port)
+    #
+    #             update_finger_table_request = chord_pb2.UpdateFingerTableRequest(
+    #                 node=self_node_info, i=i, for_leave=False)
+    #             pred_stub.UpdateFingerTable(update_finger_table_request, timeout=5)
+    #
+    #     print("Updated other nodes successfully.")
+
+    #     todo : this is the testing logic need to check if this work and then swap this one with the original method
     def update_other_nodes(self):
         """
         Update other nodes in the ring about the new node
         """
+        if self.predecessor.node_id == self.successor.node_id:
+            # Only two nodes in the ring
+            print("Only two nodes in the ring, no need to update other nodes.")
+            return
+
         for i in range(self.m):
             # go_back_n part
-
             print("CAME IN HERE", i)
-            update_id = self.node_id - 2**i
+            update_id = self.node_id - 2 ** i
             if update_id < 0:
                 update_id = self.node_id + (2 ** self.m - 2 ** i)
 
@@ -220,15 +262,17 @@ class Node:
                 pred_port = find_pred_response.port
                 pred_id = find_pred_response.id
 
-            pred_stub, pred_channel = create_stub(pred_ip, pred_port)
+            # Check if the found predecessor is valid (exists in the ring)
+            if pred_id != self.node_id and pred_id != self.predecessor.node_id and pred_id != self.successor.node_id:
+                pred_stub, pred_channel = create_stub(pred_ip, pred_port)
 
-            with pred_channel:
-                self_node_info = chord_pb2.NodeInfo(
-                    id=self.node_id, ip=self.ip, port=self.port)
+                with pred_channel:
+                    self_node_info = chord_pb2.NodeInfo(
+                        id=self.node_id, ip=self.ip, port=self.port)
 
-                update_finger_table_request = chord_pb2.UpdateFingerTableRequest(
-                    node=self_node_info, i=i, for_leave=False)
-                pred_stub.UpdateFingerTable(update_finger_table_request, timeout=5)
+                    update_finger_table_request = chord_pb2.UpdateFingerTableRequest(
+                        node=self_node_info, i=i, for_leave=False)
+                    pred_stub.UpdateFingerTable(update_finger_table_request, timeout=5)
 
         print("Updated other nodes successfully.")
 

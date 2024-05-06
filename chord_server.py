@@ -1,4 +1,6 @@
 import grpc
+
+import chord.node
 from proto import chord_pb2
 from proto import chord_pb2_grpc
 import threading
@@ -265,7 +267,9 @@ def start_server():
             while True:
                 inp = input(
                     "Select an option:\n1. Print Finger Table\n2. Print Successor\n3. Print Predecessor\n4. Leave Network\n5. Quit\n")
-                if inp == "1":
+                if inp == "0":
+                    print(f"node id {chord_node.node_id}\n node pred {chord_node.predecessor}\n node succ {chord_node.successor}")
+                elif inp == "1":
                     print(chord_node.finger_table)
                 elif inp == "2":
                     print(chord_node.successor)
