@@ -257,3 +257,53 @@ class Node:
             stub.SetSuccessor(set_successor_request, timeout=5)
 
         print("finished stabilization")
+
+
+    def leave(self):
+
+        # logger.info("Starting to leave the system.")
+        # logger.info("Setting predecessor's [{}] successor to this node's successor [{}].".
+        #             format(self.get_predecessor(), self.get_successor()))
+        # self.get_xml_client(self.get_predecessor()).set_successor(self.get_successor())
+        # logger.info("Setting successor's [{}] predecessor to this node's predecessor [{}].".
+        #             format(self.get_successor(), self.get_predecessor()))
+        # self.get_xml_client(self.get_successor()).set_predecessor(self.get_predecessor())
+        # logger.info("Updating 1st finger (successor) to this node's successor.")
+        # self.get_xml_client(self.get_predecessor()).update_finger_table(self.get_successor(), 0, True)
+        # logger.info("Transferring keys to responsible node.")
+        # self.transfer_before_leave()
+        # logger.info("Node {} left the system successfully.".format(self.get_node_id()))
+
+        print("Starting to leave the system.")
+        print("Setting predecessor's [{}] successor to this node's successor [{}].".
+                    format(self.predecessor, self.successor))
+        predecessor_stub, predecessor_channel = create_stub(
+            self.predecessor.ip, self.predecessor.port)
+        with predecessor_channel:
+            set_successor_request = chord_pb2.NodeInfo(
+                id=self.successor.node_id, ip=self.successor.ip, port=self.successor.port)
+            predecessor_stub.SetSuccessor(set_successor_request, timeout=5)
+        print("Setting successor's [{}] predecessor to this node's predecessor [{}].".
+                    format(self.successor, self.predecessor))
+        successor_stub, successor_channel = create_stub(
+            self.successor.ip, self.successor.port)
+        with successor_channel:
+            set_predecessor_request = chord_pb2.NodeInfo(
+                id=self.predecessor.node_id, ip=self.predecessor.ip, port=self.predecessor.port)
+            successor_stub.SetPredecessor(set_predecessor_request, timeout=5)
+        print("Updating 1st finger (successor) to this node's successor.")
+        predecessor_stub, predecessor_channel = create_stub(
+            self.predecessor.ip, self.predecessor.port)
+        with predecessor_channel:
+            print("HEREEA calling on", self.predecessor.node_id, self.predecessor.port)
+            print("params", self.successor.node_id, self.successor.port, self.successor.ip)
+
+            nodeinfo = chord_pb2.NodeInfo(id=self.successor.node_id, ip=self.successor.ip, port=self.successor.port)
+            update_finger_table_request = chord_pb2.UpdateFingerTableRequest(
+                node=nodeinfo, i=0, for_leave=True)
+            predecessor_stub.UpdateFingerTable(update_finger_table_request, timeout=5)
+            print("HEREEA2")
+        print("Transferring keys to responsible node.")
+        # self.transfer_before_leave()
+        print("Node {} left the system successfully.".format(self.node_id))
+

@@ -68,10 +68,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
     def FindPredecessor(self, request, context):
 
-        print("Finding predecessor rpc called with port", self.node.port)
         # if first node in the ring
         if self.node.successor.node_id == self.node.node_id:
-            print("Returning self as predecessor")
             response = chord_pb2.NodeInfo()
             response.id = self.node.node_id
             response.ip = self.node.ip
@@ -83,8 +81,6 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
             current_node = self.node
 
             while not (is_in_between(id_to_find, current_node.node_id, current_node.successor.node_id, 'right_open')):
-                print("INFINITE LOOP", id_to_find, current_node.node_id,
-                      current_node.successor.node_id)
                 current_node_stub, current_node_channel = create_stub(
                     current_node.ip, current_node.port)
 
@@ -105,7 +101,6 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
                     current_node.successor = Node(
                         get_successor_response.id, get_successor_response.ip, get_successor_response.port, self.node.m)
 
-            print("LOOP BROKEN")
             response = chord_pb2.NodeInfo()
             response.id = current_node.node_id
             response.ip = current_node.ip
@@ -117,7 +112,6 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         FindSuccessor RPC call to find the successor node of a given node_id.
         LINEAR SEARCH IMPLEMENTATION
         """
-        print("Finding successor rpc called with port", self.node.port)
         id_to_find = request.id
 
         # IMPLEMENTATION 1
@@ -158,7 +152,6 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
     def FindClosestPrecedingFinger(self, request, context):
         id_to_find = request.id
         response = chord_pb2.NodeInfo()
-        print("FindClosestPrecedingFinger rpc called with port", self.node.port)
         # print("self.node.node_id", self.node.node_id)
         # print("CLOSEST PRECEDING FINGER ID", id_to_find)
         # print("FINGER TABLE", self.node.finger_table[9].node_id)
@@ -179,17 +172,15 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         return response
 
     def UpdateFingerTable(self, request, context):
-        print("UpdateFingerTable rpc called with port", self.node.port)
         i = request.i
         source_node = request.node
         source_id = source_node.id
         source_ip = source_node.ip
         source_port = source_node.port
         for_leave = request.for_leave
-
         if for_leave:
             self.node.finger_table[i] = Node(
-                id, source_ip, source_port, self.node.m)
+                source_id, source_ip, source_port, self.node.m)
             return chord_pb2.Empty()
 
         if source_id != self.node.node_id and is_in_between(source_id, self.node.node_id, self.node.finger_table[i].node_id, 'left_open'):
@@ -200,12 +191,9 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
             while True:
                 try:
-                    print("AAA")
                     if not pred or pred.node_id == self.node.node_id:
-                        print("BBB")
                         pred = self
                     else:
-                        print("CCC")
                         pred_stub, pred_channel = create_stub(
                             pred.ip, pred.port)
                         with pred_channel:
@@ -255,14 +243,16 @@ def start_server():
         def run_input_loop():
             while True:
                 inp = input(
-                    "Select an option:\n1. Print Finger Table\n2. Print Successor\n3. Print Predecessor\n4. Quit\n")
+                    "Select an option:\n1. Print Finger Table\n2. Print Successor\n3. Print Predecessor\n4. Leave chord ring\n5. Quit\n")
                 if inp == "1":
                     print(chord_node.finger_table)
                 elif inp == "2":
                     print(chord_node.successor)
                 elif inp == "3":
                     print(chord_node.predecessor)
-                elif inp == "4":
+                elif inp =="4":
+                    chord_node.leave()
+                elif inp == "5":
                     print("Shutting down the server.")
                     server.stop(0)
                     break
