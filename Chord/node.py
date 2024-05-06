@@ -1,4 +1,6 @@
 import grpc
+
+import utils
 from proto import chord_pb2
 from proto import chord_pb2_grpc
 from utils import create_stub, is_in_between
@@ -257,6 +259,49 @@ class Node:
             stub.SetSuccessor(set_successor_request, timeout=5)
 
         print("finished stabilization")
+
+    def set(self ,key):
+        print(f"Node.py set() called for key --> {key}")
+        hashed_key = utils.sha1_hash(key,10)
+        print(f"Node.py set() the hashed key value --> {hashed_key}")
+        stub,channel = create_stub(self.ip,self.port)
+        with channel:
+            find_successor_request = chord_pb2.FindSuccessorRequest(id=hashed_key)
+            print(f"Node.py set() called by {self.node_id} ,possible node where the value would be set is {stub.FindSuccessor(find_successor_request ,timeout=5)}")
+            #todo added by suryakangeyan -->   call set_key here to set the value to the particular  node
+
+    def get(self,key):
+        print(f"Node.py get() called for key --> {key}")
+        hashed_key = utils.sha1_hash(key, 10)
+        print(f"Node.py get() the hashed key value --> {hashed_key}")
+        stub, channel = create_stub(self.ip, self.port)
+        with channel:
+            find_successor_request = chord_pb2.FindSuccessorRequest(id=hashed_key)
+            print(
+                f"Node.py set() called by {self.node_id} ,possible node where the value would be set is {stub.FindSuccessor(find_successor_request, timeout=5)}")
+            # todo added by suryakangeyan -->   call get_key here to set the value to the particular  node
+
+    def set_key(self,key):
+        self.store[key] = True # hint added by suryakangeyan -->   call get_key here to set the value to the particular node
+        if self.node_id!= self.successor:
+            #w replicate to successor
+
+    def replicate_to_successor(self,store=None):
+        if not store:
+            build_store ={}
+            for key in self.store:
+                if self.store[key]:
+                    build_store[key] = False
+
+            # stub,channel = create_stub(self.ip,self.port)
+            # with channel :  todo need to check if this should be an RPC or just a normal method call
+            self.successor.
+
+
+    def receive_keys_before_leave(self, store):
+
+        for key in store:
+            self.store[key] = store[key]
 
 
     def leave(self):
