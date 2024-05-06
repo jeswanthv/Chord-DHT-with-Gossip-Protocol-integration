@@ -271,7 +271,12 @@ def start_server():
                     print(chord_node.predecessor)
                 elif inp =="4":
                     chord_node.leave()
-                elif inp == "5":
+                elif inp =="5":
+                    key = input("Enter the key to set: ")
+                    print("Setting key:", key)
+                    result = chord_node.set(key)  # Assuming set_key is the correct method
+                    print("Key set. Node ID and connection string:", result)
+                elif inp == "6":
                     print("Shutting down the server.")
                     server.stop(0)
                     break
