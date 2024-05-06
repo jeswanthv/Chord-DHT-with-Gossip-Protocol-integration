@@ -98,6 +98,15 @@ class Node:
             print("Successfully updated others about this join.")
 
             print("Updating this node's successor's predecessor pointer to this node.")
+
+            self_stub, self_channel = create_stub(
+                self.ip, self.port)
+            
+            with self_channel:
+                get_successor_request = chord_pb2.Empty()
+                get_successor_response = self_stub.GetSuccessor(get_successor_request, timeout=5)
+                self.successor = Node(get_successor_response.id, get_successor_response.ip, get_successor_response.port, self.m)
+
             successor_stub, successor_channel = create_stub(
                 self.successor.ip, self.successor.port)
 
@@ -107,6 +116,14 @@ class Node:
                 successor_stub.SetPredecessor(set_predecessor_request, timeout=5)
 
             print("Successfully updated the successor's predecessor pointer.")
+
+            self_stub, self_channel = create_stub(
+                self.ip, self.port)
+            
+            with self_channel:
+                get_predecessor_request = chord_pb2.Empty()
+                get_predecessor_response = self_stub.GetPredecessor(get_predecessor_request, timeout=5)
+                self.predecessor = Node(get_predecessor_response.id, get_predecessor_response.ip, get_predecessor_response.port, self.m)
 
             print("Updating this node's predecessor's successor pointer to this node.")
             predecessor_stub, predecessor_channel = create_stub(
@@ -160,7 +177,7 @@ class Node:
 
                 with channel:
                     find_successor_request = chord_pb2.FindSuccessorRequest(
-                        node_id=id_to_find)
+                        id=id_to_find)
                     find_successor_response = stub.FindSuccessor(
                         find_successor_request, timeout=5)
 
@@ -240,7 +257,6 @@ class Node:
                 pred_ip = find_pred_response.ip
                 pred_port = find_pred_response.port
                 pred_id = find_pred_response.id
-
             pred_stub, pred_channel = create_stub(pred_ip, pred_port)
 
             with pred_channel:
@@ -249,7 +265,9 @@ class Node:
 
                 update_finger_table_request = chord_pb2.UpdateFingerTableRequest(
                     node=self_node_info, i=i, for_leave=False)
+                print("BBBB")
                 pred_stub.UpdateFingerTable(update_finger_table_request, timeout=5)
+                print("CCCC")
 
         print("Updated other nodes successfully.")
 

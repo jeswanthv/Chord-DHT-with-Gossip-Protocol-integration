@@ -147,7 +147,7 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
         # Ask the predecessor to find the successor
         pred_stub, pred_channel = create_stub(
-            find_pred_response.ip_address, find_pred_response.port)
+            find_pred_response.ip, find_pred_response.port)
 
         with pred_channel:
             get_succ_request = chord_pb2.Empty()
@@ -200,9 +200,12 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
             while True:
                 try:
+                    print("AAA")
                     if not pred or pred.node_id == self.node.node_id:
+                        print("BBB")
                         pred = self
                     else:
+                        print("CCC")
                         pred_stub, pred_channel = create_stub(
                             pred.ip, pred.port)
                         with pred_channel:
@@ -219,6 +222,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
                 except Exception as e:
                     print(f"Error updating finger table: {e}")
                     continue
+            
+        return chord_pb2.Empty()
 
 
 def start_server():

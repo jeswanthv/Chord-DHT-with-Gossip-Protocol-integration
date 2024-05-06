@@ -59,7 +59,7 @@ def get_args():
 
 
 
-def is_in_between(num, min_limit, max_limit, type='c'):
+def is_in_between(num, lower, higher, type='c'):
     """
     Author: Ishan Goel
     Helper function. Implements belongs_to mathematical function in context of a modulus style chord ring.
@@ -69,19 +69,24 @@ def is_in_between(num, min_limit, max_limit, type='c'):
     :return: bool
     """
     # min_limit, max_limit = limits
-    if min_limit <= max_limit:
-        # Normal range (not wrapping around the modulus)
-        if type == 'c':
-            return min_limit <= num <= max_limit
-        elif type == 'r':
-            return min_limit <= num < max_limit
-        elif type == 'l':
-            return min_limit < num <= max_limit
+
+    if lower == num and (type == 'l' or type == 'c'):
+        return True
+
+    if higher == num and (type == 'r' or type == 'c'):
+        return True
+
+    in_between_flag = None
+    if lower == higher:
+        in_between_flag = True
     else:
-        # Range wraps around the modulus, e.g., (350, 10) in a circle of 0-359
-        if type == 'c':
-            return num >= min_limit or num <= max_limit
-        elif type == 'r':
-            return num >= min_limit or num < max_limit
-        elif type == 'l':
-            return num > min_limit or num <= max_limit
+        if lower < higher:
+            in_between_flag = (lower < num) and (num < higher)
+        else:
+            in_between_flag = not ((higher < num) and (num < lower))
+
+    right_touch_flag = (num == lower) and not ((type == 'c') or (type == 'l'))
+    left_touch_flag = (num == higher) and not ((type == 'c') or (type == 'r'))
+
+    return_type = in_between_flag and not (right_touch_flag or left_touch_flag)
+    return return_type
