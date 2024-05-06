@@ -26,7 +26,7 @@ class Node:
         Join an existing node in the chord ring
         """
 
-        print(f"Node.py join_chord_ring Starting join of node {self.node_id} with bootstrap node {bootstrap_node}")
+        print("Starting join ....")
 
         if not bootstrap_node:
             print("No bootstrap server provided. Starting a new chord ring.")
@@ -46,7 +46,6 @@ class Node:
                 try:
                     find_predecessor_request = chord_pb2.FindPredecessorRequest(
                         id=self.node_id)
-                    print(f"Node.py find predecessor called for id {self.node_id}")
                     find_predecessor_response = bootstrap_stub.FindPredecessor(
                         find_predecessor_request, timeout=5)
                 except Exception as e:
@@ -56,30 +55,26 @@ class Node:
                 self.predecessor = Node(find_predecessor_response.id,
                                         find_predecessor_response.ip,
                                         find_predecessor_response.port, self.m)
-
                 print("Found predecessor node {}.".format(self.predecessor))
             
             self_stub, self_channel = create_stub(self.ip, self.port)
             print("HEEERE")
             with self_channel:
-                print(f"node.py - curr node id {self.node_id} predecessor id {self.predecessor.node_id}")
                 set_predecessor_request = chord_pb2.NodeInfo(
-                    id=self.predecessor.node_id, ip=self.predecessor.ip, port=self.predecessor.port
+                    id= self.predecessor.node_id, ip=self.predecessor.ip, port=self.predecessor.port
                 )
                 self_stub.SetPredecessor(set_predecessor_request, timeout=5)
-                print(f"node.py - curr node id {self.node_id} predecessor id {self.predecessor.node_id}")
 
 
 
             predecessor_stub, predecessor_channel = create_stub(
                 self.predecessor.ip, self.predecessor.port)
-            print(f"node.py - now setting the predecessors successor")
+
             with predecessor_channel:
                 try:
                     get_successor_request = chord_pb2.Empty()
                     get_successor_response = predecessor_stub.GetSuccessor(
                         get_successor_request, timeout=5)
-                    # print(f"Node.py -  setting the current node as the predecessor's {self.predecessor.node_id} successor as {self.successor.node_id}")
                     self.successor = Node(get_successor_response.id,
                                           get_successor_response.ip,
                                           get_successor_response.port, self.m)
@@ -87,14 +82,31 @@ class Node:
                 except Exception as e:
                     print("Error connecting to the predecessor node: {}".format(e))
                     return
-            # return  todo uncomment the return
+            
+            self_stub, self_channel = create_stub(self.ip, self.port)
+            print("HEEERE2")
+            with self_channel:
+                set_successor_request = chord_pb2.NodeInfo(
+                    id= self.successor.node_id, ip=self.successor.ip, port=self.successor.port
+                )
+                self_stub.SetSuccessor(set_successor_request, timeout=5)
+
             self.initialize_finger_table(bootstrap_node)
             print("Finger table initialized successfully.")
             print("Starting to update others.")
-            # self.update_other_nodes()  todo
+            self.update_other_nodes()
             print("Successfully updated others about this join.")
 
             print("Updating this node's successor's predecessor pointer to this node.")
+
+            self_stub, self_channel = create_stub(
+                self.ip, self.port)
+            
+            with self_channel:
+                get_successor_request = chord_pb2.Empty()
+                get_successor_response = self_stub.GetSuccessor(get_successor_request, timeout=5)
+                self.successor = Node(get_successor_response.id, get_successor_response.ip, get_successor_response.port, self.m)
+
             successor_stub, successor_channel = create_stub(
                 self.successor.ip, self.successor.port)
 
@@ -105,10 +117,18 @@ class Node:
 
             print("Successfully updated the successor's predecessor pointer.")
 
+            self_stub, self_channel = create_stub(
+                self.ip, self.port)
+            
+            with self_channel:
+                get_predecessor_request = chord_pb2.Empty()
+                get_predecessor_response = self_stub.GetPredecessor(get_predecessor_request, timeout=5)
+                self.predecessor = Node(get_predecessor_response.id, get_predecessor_response.ip, get_predecessor_response.port, self.m)
+
             print("Updating this node's predecessor's successor pointer to this node.")
             predecessor_stub, predecessor_channel = create_stub(
                 self.predecessor.ip, self.predecessor.port)
-
+            
             with predecessor_channel:
                 set_successor_request = chord_pb2.NodeInfo(
                     id=self.node_id, ip=self.ip, port=self.port)
@@ -116,142 +136,75 @@ class Node:
 
             print("Successfully updated the predecessor's successor pointer.")
 
+    def i_start(self, node_id, i) -> int:
+        """
+        Author: Adarsh Trivedi
+        Helper function.
+        :param node_id: Current node id.
+        :param i: node_id + 2^i
+        :return: node_id + 2^i
+        """
+        start = (node_id + (2 ** (i - 1))) % (2 ** self.m)
+        return start
+    
     def initialize_finger_table(self, bootstrap_node):
-        """
-        Initialize the finger table of the node
-        """
 
         successor = self.successor
 
-        stub, channel = create_stub(
-            bootstrap_node.ip, bootstrap_node.port)
-
-        with channel:
+        successor_stub, successor_channel = create_stub(
+            successor.ip, successor.port)
+        
+        with successor_channel:
             get_predecessor_request = chord_pb2.Empty()
-            get_predecessor_response = stub.GetPredecessor(
-                get_predecessor_request, timeout=5)
-            self.predecessor = Node(get_predecessor_response.id,
-                                    get_predecessor_response.ip,
-                                    get_predecessor_response.port, self.m)
+            get_predecessor_response = successor_stub.GetPredecessor(get_predecessor_request, timeout=5)
+            self.predecessor = Node(get_predecessor_response.id, get_predecessor_response.ip, get_predecessor_response.port, self.m)
 
-        print("Initializing the first finger to successor node {}.".format(
-            str(self.successor)))
         self.finger_table[0] = self.successor
 
-        self.successor = successor
+        for i in range(self.m-1):
+            # finger_start = (self.node_id + 2**i) % (2**self.m)
+            if is_in_between(self.i_start(self.node_id, i+2),self.node_id, self.finger_table[i].node_id,'l'):
+                self.finger_table[i+1] = self.finger_table[i]
 
-        for i in range(1, self.m):
-
-            finger_start = (self.node_id + 2 ** i) % (2 ** self.m)
-            my_id = self.node_id
-            my_successor_id = self.successor.node_id
-            id_to_find = finger_start
-            if (my_id < id_to_find <= my_successor_id) or \
-                    (my_id > my_successor_id and
-                     (id_to_find > my_id or id_to_find <= my_successor_id)):
-                self.finger_table[i] = self.successor
             else:
-                stub, channel = create_stub(
-                    self.ip, self.port)
-
-                with channel:
+                bootstra_stub, bootstrap_channel = create_stub(bootstrap_node.ip, bootstrap_node.port)
+                with bootstrap_channel:
                     find_successor_request = chord_pb2.FindSuccessorRequest(
-                        node_id=id_to_find)
-                    find_successor_response = stub.FindSuccessor(
-                        find_successor_request, timeout=5)
-
-                    self.finger_table[i] = Node(find_successor_response.id,
-                                                find_successor_response.ip,
-                                                find_successor_response.port, self.m)
-
-    # def closest_preceding_finger(self, id):
-    #     """
-    #     Find the closest preceding finger of a node
-    #     """
-
-    #     # for i in range(self.m - 1, -1, -1):
-    #     #     if self.finger_table[i] is not None:
-    #     #         if self.node_id < self.finger_table[i].node_id < id or \
-    #     #                 (self.node_id > id and
-    #     #                     (self.finger_table[i].node_id > self.node_id or
-    #     #                         self.finger_table[i].node_id < id)):
-    #     #             return self.finger_table[i]
-
-    #     # return self
-
-    #     # might need correction for the wrap-around case
-    #     # for i in range(self.m - 1, -1, -1):
-    #     #     finger_id = self.finger_table[i].node_id if self.finger_table[i] else None
-    #     #     if finger_id:
-    #     #         # Check if finger is between current node_id and id in a clockwise manner
-    #     #         if self.node_id < id:
-    #     #             if self.node_id < finger_id < id:
-    #     #                 return self.finger_table[i]
-    #     #         else:  # This handles the wrap-around case
-    #     #             if finger_id > self.node_id or finger_id < id:
-    #     #                 return self.finger_table[i]
-    #     # If no valid finger is found, return self to signify this node handles the request
+                        id=self.i_start(self.node_id, i+2)
+                    )
+                    find_successor_response = bootstra_stub.FindSuccessor(find_successor_request, timeout=5)
+                    self.finger_table[i+1] = Node(find_successor_response.id, find_successor_response.ip, find_successor_response.port, self.m)
 
 
-    #     for i in range(self.m - 1, -1, -1):
-    #         if is_in_between(self.finger_table[i].node_id, self.node_id, id, 'open?'):
-    #             return self.finger_table[i]
+    
+    def go_back_n(self, node_id, i) -> int:
+        """
+        Author: Adarsh Trivedi
+        Helper functions.
+        :param node_id: Current node_id
+        :param i: How many steps to move back.
+        :return: id after moving specified steps back.
+        """
+        diff = node_id - i
 
-        # print("Returning self as closest preceding finger.")
-        # return self
-
-    # todo : this is th eoriginal logic  need to verify it
-    # def update_other_nodes(self):
-    #     """
-    #     Update other nodes in the ring about the new node
-    #     """
-    #     for i in range(self.m):
-    #         # go_back_n part
-    #
-    #         print("CAME IN HERE", i)
-    #         update_id = self.node_id - 2**i
-    #         if update_id < 0:
-    #             update_id = self.node_id + (2 ** self.m - 2 ** i)
-    #
-    #         stub, channel = create_stub(self.ip, self.port)
-    #
-    #         with channel:
-    #             find_pred_request = chord_pb2.FindPredecessorRequest(
-    #                 id=update_id)
-    #             find_pred_response = stub.FindPredecessor(find_pred_request)
-    #             pred_ip = find_pred_response.ip
-    #             pred_port = find_pred_response.port
-    #             pred_id = find_pred_response.id
-    #
-    #         pred_stub, pred_channel = create_stub(pred_ip, pred_port)
-    #
-    #         with pred_channel:
-    #             self_node_info = chord_pb2.NodeInfo(
-    #                 id=self.node_id, ip=self.ip, port=self.port)
-    #
-    #             update_finger_table_request = chord_pb2.UpdateFingerTableRequest(
-    #                 node=self_node_info, i=i, for_leave=False)
-    #             pred_stub.UpdateFingerTable(update_finger_table_request, timeout=5)
-    #
-    #     print("Updated other nodes successfully.")
-
-    #     todo : this is the testing logic need to check if this work and then swap this one with the original method
+        if diff >= 0:
+            return diff
+        else:
+            return node_id + (2 ** self.m - i)
+        
     def update_other_nodes(self):
         """
         Update other nodes in the ring about the new node
         """
-        if self.predecessor.node_id == self.successor.node_id:
-            # Only two nodes in the ring
-            print("Only two nodes in the ring, no need to update other nodes.")
-            return
-
         for i in range(self.m):
             # go_back_n part
             print("CAME IN HERE", i)
-            update_id = self.node_id - 2 ** i
-            if update_id < 0:
-                update_id = self.node_id + (2 ** self.m - 2 ** i)
-
+            update_id = self.go_back_n(self.node_id, 2**(i))
+            # update_id = self.node_id - 2**i
+            # if update_id < 0:
+            #     update_id = self.node_id + (2**self.m - 2**i)
+            print("Update id: ", update_id)
+            # exit(0)
             stub, channel = create_stub(self.ip, self.port)
 
             with channel:
@@ -261,18 +214,17 @@ class Node:
                 pred_ip = find_pred_response.ip
                 pred_port = find_pred_response.port
                 pred_id = find_pred_response.id
+            pred_stub, pred_channel = create_stub(pred_ip, pred_port)
 
-            # Check if the found predecessor is valid (exists in the ring)
-            if pred_id != self.node_id and pred_id != self.predecessor.node_id and pred_id != self.successor.node_id:
-                pred_stub, pred_channel = create_stub(pred_ip, pred_port)
+            with pred_channel:
+                self_node_info = chord_pb2.NodeInfo(
+                    id=self.node_id, ip=self.ip, port=self.port)
 
-                with pred_channel:
-                    self_node_info = chord_pb2.NodeInfo(
-                        id=self.node_id, ip=self.ip, port=self.port)
-
-                    update_finger_table_request = chord_pb2.UpdateFingerTableRequest(
-                        node=self_node_info, i=i, for_leave=False)
-                    pred_stub.UpdateFingerTable(update_finger_table_request, timeout=5)
+                update_finger_table_request = chord_pb2.UpdateFingerTableRequest(
+                    node=self_node_info, i=i, for_leave=False)
+                print("BBBB")
+                pred_stub.UpdateFingerTable(update_finger_table_request, timeout=5)
+                print("CCCC")
 
         print("Updated other nodes successfully.")
 
@@ -282,7 +234,7 @@ class Node:
         """
 
         i = random.randint(0, self.m - 1)
-        finger_start = (self.node_id + 2 ** i) % (2 ** self.m)
+        finger_start = (self.node_id + 2**i) % (2**self.m)
         stub, channel = create_stub(self.ip, self.port)
         with channel:
             find_successor_request = chord_pb2.FindSuccessorRequest(
@@ -306,33 +258,52 @@ class Node:
 
         print("finished stabilization")
 
-    def leave(self):
-        """
-        Graceful leaving of the node form the network
-        """
-        print(f"Node.py -leave method called on node {self.node_id},with predecessor {self.predecessor.node_id} , successor id {self.successor.node_id}")
-        predecessor_stub, predecessor_stub_channel = create_stub(self.predecessor.ip, self.predecessor.port)
-        successor_stub, successor_stub_channel = create_stub(self.successor.ip, self.successor.port)
-        try:
-            with successor_stub_channel, predecessor_stub_channel:
-                set_successor_request = chord_pb2.NodeInfo(
-                    id=self.successor.node_id, ip=self.successor.ip, port=self.successor.port)
-                predecessor_stub.SetSuccessor(set_successor_request)
 
+    def leave(self):
+
+        # logger.info("Starting to leave the system.")
+        # logger.info("Setting predecessor's [{}] successor to this node's successor [{}].".
+        #             format(self.get_predecessor(), self.get_successor()))
+        # self.get_xml_client(self.get_predecessor()).set_successor(self.get_successor())
+        # logger.info("Setting successor's [{}] predecessor to this node's predecessor [{}].".
+        #             format(self.get_successor(), self.get_predecessor()))
+        # self.get_xml_client(self.get_successor()).set_predecessor(self.get_predecessor())
+        # logger.info("Updating 1st finger (successor) to this node's successor.")
+        # self.get_xml_client(self.get_predecessor()).update_finger_table(self.get_successor(), 0, True)
+        # logger.info("Transferring keys to responsible node.")
+        # self.transfer_before_leave()
+        # logger.info("Node {} left the system successfully.".format(self.get_node_id()))
+
+        print("Starting to leave the system.")
+        print("Setting predecessor's [{}] successor to this node's successor [{}].".
+                    format(self.predecessor, self.successor))
+        predecessor_stub, predecessor_channel = create_stub(
+            self.predecessor.ip, self.predecessor.port)
+        with predecessor_channel:
+            set_successor_request = chord_pb2.NodeInfo(
+                id=self.successor.node_id, ip=self.successor.ip, port=self.successor.port)
+            predecessor_stub.SetSuccessor(set_successor_request, timeout=5)
+        print("Setting successor's [{}] predecessor to this node's predecessor [{}].".
+                    format(self.successor, self.predecessor))
+        successor_stub, successor_channel = create_stub(
+            self.successor.ip, self.successor.port)
+        with successor_channel:
             set_predecessor_request = chord_pb2.NodeInfo(
                 id=self.predecessor.node_id, ip=self.predecessor.ip, port=self.predecessor.port)
-            successor_stub.SetPredecessor(set_predecessor_request)
+            successor_stub.SetPredecessor(set_predecessor_request, timeout=5)
+        print("Updating 1st finger (successor) to this node's successor.")
+        predecessor_stub, predecessor_channel = create_stub(
+            self.predecessor.ip, self.predecessor.port)
+        with predecessor_channel:
+            print("HEREEA calling on", self.predecessor.node_id, self.predecessor.port)
+            print("params", self.successor.node_id, self.successor.port, self.successor.ip)
 
+            nodeinfo = chord_pb2.NodeInfo(id=self.successor.node_id, ip=self.successor.ip, port=self.successor.port)
             update_finger_table_request = chord_pb2.UpdateFingerTableRequest(
-                node=chord_pb2.NodeInfo(
-                    id=self.successor.node_id,
-                    ip=self.successor.ip,
-                    port=self.successor.port),
-                i=0,
-                for_leave=True
-            )
-            predecessor_stub.UpdateFingerTable(update_finger_table_request)
-        except Exception as e:
-            print(f"An error occurred during graceful leave: {e}")
-        finally:
-            print("Node.py - Node gracefully leaving the network, leave success")
+                node=nodeinfo, i=0, for_leave=True)
+            predecessor_stub.UpdateFingerTable(update_finger_table_request, timeout=5)
+            print("HEREEA2")
+        print("Transferring keys to responsible node.")
+        # self.transfer_before_leave()
+        print("Node {} left the system successfully.".format(self.node_id))
+
