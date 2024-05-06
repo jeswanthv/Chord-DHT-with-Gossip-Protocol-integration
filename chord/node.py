@@ -136,90 +136,47 @@ class Node:
 
             print("Successfully updated the predecessor's successor pointer.")
 
-
+    def i_start(self, node_id, i) -> int:
+        """
+        Author: Adarsh Trivedi
+        Helper function.
+        :param node_id: Current node id.
+        :param i: node_id + 2^i
+        :return: node_id + 2^i
+        """
+        start = (node_id + (2 ** (i - 1))) % (2 ** self.m)
+        return start
+    
     def initialize_finger_table(self, bootstrap_node):
-        """
-        Initialize the finger table of the node
-        """
 
         successor = self.successor
 
-        stub, channel = create_stub(
-            bootstrap_node.ip, bootstrap_node.port)
-
-        with channel:
+        successor_stub, successor_channel = create_stub(
+            successor.ip, successor.port)
+        
+        with successor_channel:
             get_predecessor_request = chord_pb2.Empty()
-            get_predecessor_response = stub.GetPredecessor(
-                get_predecessor_request, timeout=5)
-            self.predecessor = Node(get_predecessor_response.id,
-                                    get_predecessor_response.ip,
-                                    get_predecessor_response.port, self.m)
+            get_predecessor_response = successor_stub.GetPredecessor(get_predecessor_request, timeout=5)
+            self.predecessor = Node(get_predecessor_response.id, get_predecessor_response.ip, get_predecessor_response.port, self.m)
 
-        print("Initializing the first finger to successor node {}.".format(
-            str(self.successor)))
         self.finger_table[0] = self.successor
 
-        self.successor = successor
+        for i in range(self.m-1):
+            # finger_start = (self.node_id + 2**i) % (2**self.m)
+            if is_in_between(self.i_start(self.node_id, i+2),self.node_id, self.finger_table[i].node_id,'l'):
+                self.finger_table[i+1] = self.finger_table[i]
 
-        for i in range(1, self.m):
-
-            finger_start = (self.node_id + 2**i) % (2**self.m)
-            my_id = self.node_id
-            my_successor_id = self.successor.node_id
-            id_to_find = finger_start
-            if (my_id < id_to_find <= my_successor_id) or \
-                    (my_id > my_successor_id and
-                        (id_to_find > my_id or id_to_find <= my_successor_id)):
-                self.finger_table[i] = self.successor
             else:
-                stub, channel = create_stub(
-                    self.ip, self.port)
-
-                with channel:
+                bootstra_stub, bootstrap_channel = create_stub(bootstrap_node.ip, bootstrap_node.port)
+                with bootstrap_channel:
                     find_successor_request = chord_pb2.FindSuccessorRequest(
-                        id=id_to_find)
-                    find_successor_response = stub.FindSuccessor(
-                        find_successor_request, timeout=5)
-
-                    self.finger_table[i] = Node(find_successor_response.id,
-                                                find_successor_response.ip,
-                                                find_successor_response.port, self.m)
-
-    # def closest_preceding_finger(self, id):
-    #     """
-    #     Find the closest preceding finger of a node
-    #     """
-
-    #     # for i in range(self.m - 1, -1, -1):
-    #     #     if self.finger_table[i] is not None:
-    #     #         if self.node_id < self.finger_table[i].node_id < id or \
-    #     #                 (self.node_id > id and
-    #     #                     (self.finger_table[i].node_id > self.node_id or
-    #     #                         self.finger_table[i].node_id < id)):
-    #     #             return self.finger_table[i]
-
-    #     # return self
-
-    #     # might need correction for the wrap-around case
-    #     # for i in range(self.m - 1, -1, -1):
-    #     #     finger_id = self.finger_table[i].node_id if self.finger_table[i] else None
-    #     #     if finger_id:
-    #     #         # Check if finger is between current node_id and id in a clockwise manner
-    #     #         if self.node_id < id:
-    #     #             if self.node_id < finger_id < id:
-    #     #                 return self.finger_table[i]
-    #     #         else:  # This handles the wrap-around case
-    #     #             if finger_id > self.node_id or finger_id < id:
-    #     #                 return self.finger_table[i]
-    #     # If no valid finger is found, return self to signify this node handles the request
+                        id=self.i_start(self.node_id, i+2)
+                    )
+                    find_successor_response = bootstra_stub.FindSuccessor(find_successor_request, timeout=5)
+                    self.finger_table[i+1] = Node(find_successor_response.id, find_successor_response.ip, find_successor_response.port, self.m)
 
 
-    #     for i in range(self.m - 1, -1, -1):
-    #         if is_in_between(self.finger_table[i].node_id, self.node_id, id, 'open?'):
-    #             return self.finger_table[i]
-
-        # print("Returning self as closest preceding finger.")
-        # return self
+    
     def go_back_n(self, node_id, i) -> int:
         """
         Author: Adarsh Trivedi
