@@ -161,13 +161,7 @@ class Node:
                 print(e)
 
     def i_start(self, node_id, i) -> int:
-        """
-        Author: Adarsh Trivedi
-        Helper function.
-        :param node_id: Current node id.
-        :param i: node_id + 2^i
-        :return: node_id + 2^i
-        """
+
         start = (node_id + (2 ** (i - 1))) % (2 ** self.m)
         return int(start)
 
@@ -205,13 +199,7 @@ class Node:
                                                   find_successor_response.ip, find_successor_response.port, self.m)
 
     def go_back_n(self, node_id, i) -> int:
-        """
-        Author: Adarsh Trivedi
-        Helper functions.
-        :param node_id: Current node_id
-        :param i: How many steps to move back.
-        :return: id after moving specified steps back.
-        """
+
         diff = node_id - i
 
         if diff >= 0:
@@ -262,27 +250,32 @@ class Node:
         i = random.randint(0, self.m - 1)
         finger_start = (self.node_id + 2**i) % (2**self.m)
         stub, channel = create_stub(self.ip, self.port)
-        with channel:
-            find_successor_request = chord_pb2.FindSuccessorRequest(
-                id=finger_start)
-            find_successor_response = stub.FindSuccessor(
-                find_successor_request, timeout=5)
-            self.finger_table[i] = Node(find_successor_response.id,
-                                        find_successor_response.ip,
-                                        find_successor_response.port, self.m)
-
-        print("Fingers fixed successfully.")
+        try:
+            with channel:
+                find_successor_request = chord_pb2.FindSuccessorRequest(
+                    id=finger_start)
+                find_successor_response = stub.FindSuccessor(
+                    find_successor_request, timeout=5)
+                self.finger_table[i] = Node(find_successor_response.id,
+                                            find_successor_response.ip,
+                                            find_successor_response.port, self.m)
+        except Exception as e:
+            print("Error fixing finger table: {}".format(e))
+            return
+        # print("Fingers fixed successfully.")
 
     def stabilize(self):
 
-        stub, channel = create_stub(self.ip, self.port)
-        print("Starting stabilization")
-        with channel:
-            set_successor_request = chord_pb2.NodeInfo(
-                id=self.successor.node_id, ip=self.successor.ip, port=self.successor.port)
-            stub.SetSuccessor(set_successor_request, timeout=5)
-
-        print("finished stabilization")
+        try:
+            stub, channel = create_stub(self.ip, self.port)
+            # print("Starting stabilization")
+            with channel:
+                set_successor_request = chord_pb2.NodeInfo(
+                    id=self.successor.node_id, ip=self.successor.ip, port=self.successor.port)
+                stub.SetSuccessor(set_successor_request, timeout=5)
+        except Exception:
+            return
+        # print("finished stabilization")
 
     def initialize_store(self):
 
@@ -295,7 +288,6 @@ class Node:
                 get_transfer_data_request, timeout=5)
 
             data = get_transfer_data_response.data
-        print("GETTRANSFERDATA CALLED : ", data)
         self.store = ast.literal_eval(data)
 
     def set(self, key, filename="not_provided.txt"):

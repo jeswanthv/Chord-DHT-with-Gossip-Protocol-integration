@@ -7,16 +7,17 @@ import ast
 import os
 from utils import sha1_hash, get_args, create_stub, is_in_between, download_file
 from chord.node import Node
+import time
 
 
-def stabalization(node):
-    try:
-        node.stabilize()
-        node.fix_fingers()
-    except Exception as e:
-        print("Error in stabilization: ", e)
-    
-
+def run_stabilization(node):
+    while True:
+        try:
+            node.stabilize()
+            node.fix_fingers()
+        except Exception as e:
+            print("Error in stabilization loop: ", e)
+        time.sleep(2)  # Sleep for 10 seconds or any other suitable interval
 
 class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
@@ -349,7 +350,7 @@ def start_server():
         server.start()
         chord_node.join_chord_ring(bootstrap_node)
 
-        print(f"Server started at {node_ip_address}:{node_port}")
+        print(f"Server started at {node_ip_address}:{node_port} with ID {node_id}")
 
         def run_input_loop():
             while True:
@@ -397,7 +398,10 @@ def start_server():
                 else:
                     print("Invalid option. Please try again.")
             server.stop(0)
-
+        # stabilization(chord_node) 
+        stabilization_thread = threading.Thread(target=run_stabilization, args=(chord_node,))
+        stabilization_thread.daemon = True  # Optional: makes this thread a daemon so it won't prevent the program from exiting
+        stabilization_thread.start()
         # Start the input loop in a separate thread
         thread = threading.Thread(target=run_input_loop)
         thread.start()
