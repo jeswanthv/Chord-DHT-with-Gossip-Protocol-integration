@@ -60,6 +60,7 @@ message GetKeyResponse {
 
 message SetKeyRequest {
     int32 key = 1;
+    string filename = 2;
 }
 
 message ReceiveKeysBeforeLeaveRequest {

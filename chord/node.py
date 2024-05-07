@@ -297,7 +297,7 @@ class Node:
         print("GETTRANSFERDATA CALLED : ", data)
         self.store = ast.literal_eval(data)
 
-    def set(self, key):
+    def set(self, key, filename="not_provided.txt"):
         # print(f"Node.py set() called for key --> {key}")
         hashed_key = sha1_hash(key, self.m)
         # print(f"Node.py set() the hashed key value --> {hashed_key}")
@@ -315,7 +315,7 @@ class Node:
 
         with successor_channel:
             set_key_request = chord_pb2.SetKeyRequest(
-                key=hashed_key
+                key=hashed_key, filename = filename
             )
             set_key_response = successor_stub.SetKey(
                 set_key_request, timeout=5)
@@ -352,8 +352,8 @@ class Node:
         if not store:
             build_store = {}
             for key in self.store:
-                if self.store[key]:
-                    build_store[key] = False
+                if self.store[key][0]:
+                    build_store[key][0] = False
 
             # stub,channel = create_stub(self.ip,self.port)
             # with channel :  todo need to check if this should be an RPC or just a normal method call
@@ -362,7 +362,7 @@ class Node:
     def receive_keys_before_leave(self, store):
 
         for key in store:
-            self.store[key] = store[key]
+            self.store[key][0] = store[key][0]
 
     def replicate_keys_to_successor(self, store=None):
 
@@ -370,8 +370,8 @@ class Node:
             if not store:
                 build_store = {}
                 for key in self.store:
-                    if self.store[key]:
-                        build_store[key] = False
+                    if self.store[key][0]:
+                        build_store[key] = [False, self.store[key][1]]
                 successor_stub, successor_channel = create_stub(
                     successor.ip, successor.port)
                 with successor_channel:
@@ -391,7 +391,7 @@ class Node:
                         receive_keys_before_leave_request, timeout=5)
 
     def replicate_single_key_to_successor(self, key):
-        store = {key: False}
+        store = {key: [False, self.store[key][1]]}
         self.replicate_keys_to_successor(store)
 
     def transfer_before_leave(self):
@@ -442,7 +442,7 @@ class Node:
         hashed_key = sha1_hash(file_path, self.m)
         stub, channel = create_stub(self.ip, self.port)
         with channel:
-            set_key_request = chord_pb2.SetKeyRequest(key=hashed_key)
+            set_key_request = chord_pb2.SetKeyRequest(key=hashed_key, filename=file_path)
             set_key_response = stub.SetKey(set_key_request, timeout=5)
             target_node_port = set_key_response.port
             target_node_ip = set_key_response.ip

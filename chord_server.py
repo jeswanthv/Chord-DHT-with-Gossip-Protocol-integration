@@ -240,7 +240,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
         for key in self.node.store:
             if is_in_between(key, self.node.node_id, node_id, 'o'):
-                transfer_data[key] = True
+                # transfer_data[key] = True
+                transfer_data[key] = [True, self.node.store[key][1]]
                 keys_to_be_deleted.append(key)
 
         for key in keys_to_be_deleted:
@@ -251,8 +252,9 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         return response
 
     def SetKey(self, request, context):
+        print("SET KEY CALLED", request)
         key = request.key
-        self.node.store[key] = True
+        self.node.store[key] = [True, request.filename]
         if self.node.node_id != self.node.successor.node_id:
             self.node.replicate_single_key_to_successor(key)
 
@@ -352,6 +354,7 @@ def start_server():
                     print(chord_node.predecessor)
                 elif inp == "4":
                     chord_node.leave()
+                    break
                 elif inp == "5":
                     key = input("Enter the key to set: ")
                     # Assuming set_key is the correct method
@@ -381,10 +384,10 @@ def start_server():
                         print("File not found.")
                 elif inp == "10":
                     print("Shutting down the server.")
-                    server.stop(0)
                     break
                 else:
                     print("Invalid option. Please try again.")
+            server.stop(0)
 
         # Start the input loop in a separate thread
         thread = threading.Thread(target=run_input_loop)
