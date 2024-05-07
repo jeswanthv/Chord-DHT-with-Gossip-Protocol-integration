@@ -146,26 +146,6 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         """
         id_to_find = request.id
 
-        # IMPLEMENTATION 1
-        # my_id = self.node.node_id
-        # my_successor_id = self.node.successor.node_id
-        # # Check if the requested ID is in the range (my_id, my_successor_id]
-        # if (my_id < id_to_find <= my_successor_id) or (my_id > my_successor_id and (id_to_find > my_id or id_to_find <= my_successor_id)):
-        #     # The current node's successor is the successor of the requested node_id
-        #     response = chord_pb2.NodeInfo()
-        #     response.node_id = self.node.successor.node_id
-        #     response.ip_address = self.node.successor.ip
-        #     response.port = self.node.successor.port
-        #     return response
-        # else:
-        #     # Need to ask the successor to find the successor
-        #     channel = grpc.insecure_channel(
-        #         f'{self.node.successor.ip}:{self.node.successor.port}')
-        #     stub = chord_pb2_grpc.ChordServiceStub(channel)
-        #     successor_request = chord_pb2.FindSuccessorRequest(id=id_to_find)
-        #     return stub.FindSuccessor(successor_request)
-
-        # IMPLEMENTATION 2
         node_stub, node_channel = create_stub(self.node.ip, self.node.port)
         with node_channel:
             find_pred_request = chord_pb2.FindPredecessorRequest(id=id_to_find)
@@ -299,17 +279,6 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
             print(f"Error downloading file: {e}")
             return
 
-    # def UploadFile(self, request_iterator, context):
-    #     file_path = os.path.join("uploads", request_iterator.filename)
-    #     print("GOT UPLOAD REQUEST")
-    #     with open(file_path, "wb") as f:
-    #         for request in request_iterator:
-    #             print("request", request)
-    #             if file_path is None:
-    #                 file_path = os.path.join("uploads", request_iterator.filename)
-    #             # Write bytes to file
-    #             f.write(request.data)
-    #     return chord_pb2.UploadFileResponse(message="File uploaded successfully.")
     def UploadFile(self, request_iterator, context):
         file_path = None  # Initialize file_path as None to be set on the first request
         for request in request_iterator:
@@ -393,11 +362,12 @@ def start_server():
                     key = input("Enter the filename to download: ")
                     get_result = chord_node.get(key)
                     file_location_port = get_result.port
+                    file_location_ip = get_result.ip
                     if file_location_port is None:
                         print("File not found.")
                     else:
                         print("NEED TO DOWNLOAD FROM NODE", get_result)
-                        download_file(key, file_location_port)
+                        download_file(key, file_location_ip ,file_location_port)
                 elif inp == "9":
                     file_path = input("Enter the filename to upload: ")
                     if os.path.exists(file_path):

@@ -261,7 +261,7 @@ class Node:
                                             find_successor_response.ip,
                                             find_successor_response.port, self.m)
         except Exception as e:
-            print("Error fixing finger table: {}".format(e))
+            # print("Error fixing finger table: {}".format(e))
             return
         # print("Fingers fixed successfully.")
 

@@ -93,10 +93,10 @@ def is_in_between(num, lower, higher, type='c'):
     return return_type
 
 
-def download_file(file_name, port):
+def download_file(file_name, ip, port):
     #using grpc
 
-    stub, channel = create_stub('localhost', port)
+    stub, channel = create_stub(ip, port)
 
     with channel:
         response = stub.DownloadFile(chord_pb2.DownloadFileRequest(filename=file_name))
