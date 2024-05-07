@@ -20,6 +20,7 @@ class Node:
         self.finger_table = {i: self for i in range(m)}
         self.successor_list = [self for _ in range(3)]
         self.store = {}
+        self.gossip_messages = set()
 
     def __str__(self):
         return f"Node {self.node_id} at {self.ip}:{self.port}"
@@ -468,3 +469,24 @@ class Node:
         tab.add_rows(table[1:])
         tab.hrules = ALL
         print(tab)
+
+    def perform_gossip(self, message="hey there!"):
+        unique_nodes = {}
+        if message not in self.gossip_messages:
+            self.gossip_messages.add(message)
+            unique_nodes[self.node_id] = self
+        
+        for i in range(self.m):
+            unique_nodes[self.finger_table[i].node_id] = self.finger_table[i]
+        
+        for node in unique_nodes:
+            node_stub, node_channel = create_stub(unique_nodes[node].ip, unique_nodes[node].port)
+            with node_channel:
+                gossip_request = chord_pb2.GossipRequest(message=message)
+                node_stub.Gossip(gossip_request, timeout=5)
+                print("Gossip message sent to node with port: {}".format(unique_nodes[node].port))
+
+        
+
+
+

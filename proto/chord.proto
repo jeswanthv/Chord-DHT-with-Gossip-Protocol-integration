@@ -84,6 +84,10 @@ message UploadFileResponse {
     string message = 1;         // Response message, e.g., confirmation message.
 }
 
+message GossipRequest {
+    string message = 1;
+}
+
 
 service ChordService {
 
@@ -123,5 +127,7 @@ service ChordService {
     rpc DownloadFile(DownloadFileRequest) returns (stream DownloadFileResponse) {}
 
     rpc UploadFile(stream UploadFileRequest) returns (UploadFileResponse) {}
+
+    rpc Gossip(GossipRequest) returns (Empty) {}
     
 }

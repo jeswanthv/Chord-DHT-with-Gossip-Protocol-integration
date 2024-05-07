@@ -19,6 +19,7 @@ def run_stabilization(node):
             print("Error in stabilization loop: ", e)
         time.sleep(2)  # Sleep for 10 seconds or any other suitable interval
 
+
 class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
     def __init__(self, node: Node):
@@ -76,9 +77,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
                             successor_stub.SetPredecessor(
                                 set_predecessor_request)
                     except Exception as e:
-                        print("Will try again updating the predecessor.")
+                        print("Will try again updating the predecessor.", i)
 
-                    # TODO - implement replication bit
                     self.node.replicate_keys_to_successor()
             i += 1
 
@@ -325,6 +325,17 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
         return chord_pb2.UploadFileResponse(message=f"File uploaded successfully at node with ID = {self.node.node_id}.")
 
+    def Gossip(self, request, context):
+        message = request.message
+        if message in self.node.gossip_messages:
+            return chord_pb2.Empty()
+        self.node.gossip_messages.add(message)
+        print(f"Node with port: {self.node.port} received message: {message}")
+        self.node.perform_gossip(message)
+        return chord_pb2.Empty()
+
+
+
 
 def start_server():
     try:
@@ -350,12 +361,13 @@ def start_server():
         server.start()
         chord_node.join_chord_ring(bootstrap_node)
 
-        print(f"Server started at {node_ip_address}:{node_port} with ID {node_id}")
+        print(
+            f"Server started at {node_ip_address}:{node_port} with ID {node_id}")
 
         def run_input_loop():
             while True:
                 inp = input(
-                    "Select an option:\n1. Print Finger Table\n2. Print Successor\n3. Print Predecessor\n4. Leave chord ring\n5. Set Key\n6. Get Key\n7. Show Store\n8. Download File\n9. Upload File\n10. Quit\n")
+                    "Select an option:\n1. Print Finger Table\n2. Print Successor\n3. Print Predecessor\n4. Leave chord ring\n5. Set Key\n6. Get Key\n7. Show Store\n8. Download File\n9. Upload File\n10. Gossip\n11. Quit\n")
                 if inp == "1":
                     chord_node.show_finger_table()
                 elif inp == "2":
@@ -376,6 +388,7 @@ def start_server():
                     print("Key found at node ID:", result)
                 elif inp == "7":
                     chord_node.show_store()
+                    print(chord_node.gossip_messages)
                 elif inp == "8":
                     key = input("Enter the filename to download: ")
                     get_result = chord_node.get(key)
@@ -393,14 +406,19 @@ def start_server():
                     else:
                         print("File not found.")
                 elif inp == "10":
+                    message = input("Enter the message to gossip: ")
+                    chord_node.perform_gossip(message)
+                elif inp == "11":
                     print("Shutting down the server.")
                     break
                 else:
                     print("Invalid option. Please try again.")
             server.stop(0)
-        # stabilization(chord_node) 
-        stabilization_thread = threading.Thread(target=run_stabilization, args=(chord_node,))
-        stabilization_thread.daemon = True  # Optional: makes this thread a daemon so it won't prevent the program from exiting
+        # stabilization(chord_node)
+        stabilization_thread = threading.Thread(
+            target=run_stabilization, args=(chord_node,))
+        # Optional: makes this thread a daemon so it won't prevent the program from exiting
+        stabilization_thread.daemon = True
         stabilization_thread.start()
         # Start the input loop in a separate thread
         thread = threading.Thread(target=run_input_loop)
