@@ -1,4 +1,5 @@
 import grpc
+from prettytable import PrettyTable, ALL
 
 from proto import chord_pb2
 from proto import chord_pb2_grpc
@@ -168,7 +169,7 @@ class Node:
         :return: node_id + 2^i
         """
         start = (node_id + (2 ** (i - 1))) % (2 ** self.m)
-        return start
+        return int(start)
 
     def initialize_finger_table(self, bootstrap_node):
 
@@ -454,3 +455,24 @@ class Node:
                 generate_requests(file_path), timeout=5)
 
         return upload_file_response
+    
+
+    def show_store(self):
+        table = [["No.", "File Name"]]
+        for i, key in enumerate(self.store, start=1):
+            table.append([i, self.store[key][1]])
+        
+        tab = PrettyTable(table[0])
+        tab.add_rows(table[1:])
+        tab.hrules = ALL
+        print(tab)
+
+    def show_finger_table(self):
+        table = [["i", "Start", "Successor"]]
+        for i in range(self.m):
+            table.append([i, self.i_start(self.node_id, i), self.finger_table[i].node_id])
+        
+        tab = PrettyTable(table[0])
+        tab.add_rows(table[1:])
+        tab.hrules = ALL
+        print(tab)

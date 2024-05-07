@@ -9,6 +9,15 @@ from utils import sha1_hash, get_args, create_stub, is_in_between, download_file
 from chord.node import Node
 
 
+def stabalization(node):
+    try:
+        node.stabilize()
+        node.fix_fingers()
+    except Exception as e:
+        print("Error in stabilization: ", e)
+    
+
+
 class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
     def __init__(self, node: Node):
@@ -347,7 +356,7 @@ def start_server():
                 inp = input(
                     "Select an option:\n1. Print Finger Table\n2. Print Successor\n3. Print Predecessor\n4. Leave chord ring\n5. Set Key\n6. Get Key\n7. Show Store\n8. Download File\n9. Upload File\n10. Quit\n")
                 if inp == "1":
-                    print(chord_node.finger_table)
+                    chord_node.show_finger_table()
                 elif inp == "2":
                     print(chord_node.successor)
                 elif inp == "3":
@@ -365,7 +374,7 @@ def start_server():
                     result = chord_node.get(key)
                     print("Key found at node ID:", result)
                 elif inp == "7":
-                    print(chord_node.store)
+                    chord_node.show_store()
                 elif inp == "8":
                     key = input("Enter the filename to download: ")
                     get_result = chord_node.get(key)
