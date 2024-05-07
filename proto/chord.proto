@@ -63,6 +63,14 @@ message SetKeyRequest {
     bytes file = 2;
 }
 
+message DeleteKeyRequest{
+    int32 key = 1;
+    bytes file = 2;
+}
+
+message DeleteKeyResponse{
+    int32 id = 1;
+}
 service ChordService {
 
     // RPC to get the successor of a node
@@ -95,5 +103,7 @@ service ChordService {
     rpc GetKey(GetKeyRequest) returns (NodeInfo) {}  
 
     rpc SetKey(SetKeyRequest) returns (NodeInfo) {}
+
+    rpc DeleteKey(DeleteKeyRequest) returns (NodeInfo){}
     
 }

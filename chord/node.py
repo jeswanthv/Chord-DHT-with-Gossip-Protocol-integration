@@ -357,6 +357,30 @@ class Node:
         for key in store:
             self.store[key] = store[key]
 
+
+    def delete(self,key):
+        hashed_key = sha1_hash(key, self.m)
+        print(f"Node.py delete() the hashed key value --> {hashed_key}")
+        stub, channel = create_stub(self.ip, self.port)
+        with channel:
+            find_successor_request = chord_pb2.FindSuccessorRequest(id=hashed_key)
+            find_successor_response = stub.FindSuccessor(find_successor_request, timeout=5)
+
+        successor_stub, successor_channel = create_stub(
+            find_successor_response.ip, find_successor_response.port)
+        print(f"found key {key} in node ---> {find_successor_response.id} ")
+        with successor_channel:
+            delete_key_request = chord_pb2.DeleteKeyRequest(
+                key=int(hashed_key)
+            )
+            delete_key_response = successor_stub.DeleteKey(delete_key_request, timeout=5)
+
+        return delete_key_response
+
+
+    def del_key_for_sucessor(self,key):
+        if key in self.store:
+            del self.store[key]
     def leave(self):
 
         # logger.info("Starting to leave the system.")

@@ -74,6 +74,11 @@ class ChordServiceStub(object):
                 request_serializer=proto_dot_chord__pb2.SetKeyRequest.SerializeToString,
                 response_deserializer=proto_dot_chord__pb2.NodeInfo.FromString,
                 )
+        self.DeleteKey = channel.unary_unary(
+                '/chord.ChordService/DeleteKey',
+                request_serializer=proto_dot_chord__pb2.DeleteKeyRequest.SerializeToString,
+                response_deserializer=proto_dot_chord__pb2.NodeInfo.FromString,
+                )
 
 
 class ChordServiceServicer(object):
@@ -158,6 +163,12 @@ class ChordServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def DeleteKey(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_ChordServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -219,6 +230,11 @@ def add_ChordServiceServicer_to_server(servicer, server):
             'SetKey': grpc.unary_unary_rpc_method_handler(
                     servicer.SetKey,
                     request_deserializer=proto_dot_chord__pb2.SetKeyRequest.FromString,
+                    response_serializer=proto_dot_chord__pb2.NodeInfo.SerializeToString,
+            ),
+            'DeleteKey': grpc.unary_unary_rpc_method_handler(
+                    servicer.DeleteKey,
+                    request_deserializer=proto_dot_chord__pb2.DeleteKeyRequest.FromString,
                     response_serializer=proto_dot_chord__pb2.NodeInfo.SerializeToString,
             ),
     }
@@ -431,6 +447,23 @@ class ChordService(object):
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/chord.ChordService/SetKey',
             proto_dot_chord__pb2.SetKeyRequest.SerializeToString,
+            proto_dot_chord__pb2.NodeInfo.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def DeleteKey(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/chord.ChordService/DeleteKey',
+            proto_dot_chord__pb2.DeleteKeyRequest.SerializeToString,
             proto_dot_chord__pb2.NodeInfo.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

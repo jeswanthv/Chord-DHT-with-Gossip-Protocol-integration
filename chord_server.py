@@ -31,7 +31,7 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
         i = 1
         while i < 3:
-            intermediate_node = self.node.successor_list[i-1]
+            intermediate_node = self.node.successor_list[i - 1]
             try:
                 if intermediate_node is not None:
                     intermediate_stub, intermediate_channel = create_stub(
@@ -41,10 +41,11 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
                         get_successor_response = intermediate_stub.GetSuccessor(
                             get_successor_request)
                         self.node.successor_list[i] = Node(
-                            get_successor_response.id, get_successor_response.ip, get_successor_response.port, self.node.m)
+                            get_successor_response.id, get_successor_response.ip, get_successor_response.port,
+                            self.node.m)
             except Exception as e:
                 print("BOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOM")
-                self.node.successor_list[i-1] = self.node.successor_list[i]
+                self.node.successor_list[i - 1] = self.node.successor_list[i]
                 if i == 1:
                     print("Suspect a crash for node [{}].".format(
                         self.node.successor))
@@ -54,7 +55,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
                         self.node.ip, self.node.port)
                     with self_channel:
                         update_finger_table_request = chord_pb2.UpdateFingerTableRequest(
-                            node=chord_pb2.NodeInfo(id=self.node.successor.node_id, ip=self.node.successor.ip, port=self.node.successor.port), i=0, for_leave=True)
+                            node=chord_pb2.NodeInfo(id=self.node.successor.node_id, ip=self.node.successor.ip,
+                                                    port=self.node.successor.port), i=0, for_leave=True)
 
                     try:
                         successor_stub, successor_channel = create_stub(
@@ -66,7 +68,7 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
                                 set_predecessor_request)
                     except Exception as e:
                         print("Will try again updating the predecessor.")
-                    
+
                     # TODO - implement replication bit
             i += 1
 
@@ -175,7 +177,7 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         # print("self.node.node_id", self.node.node_id)
         # print("CLOSEST PRECEDING FINGER ID", id_to_find)
         # print("FINGER TABLE", self.node.finger_table[9].node_id)
-        for i in range(self.node.m-1, -1, -1):
+        for i in range(self.node.m - 1, -1, -1):
             if is_in_between(self.node.finger_table[i].node_id, self.node.node_id, id_to_find, 'closed'):
                 # print("TRUE FOR IDENTIFIER", id_to_find)
 
@@ -201,7 +203,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
                 source_id, source_ip, source_port, self.node.m)
             return chord_pb2.Empty()
 
-        if source_id != self.node.node_id and is_in_between(source_id, self.node.node_id, self.node.finger_table[i].node_id, 'left_open'):
+        if source_id != self.node.node_id and is_in_between(source_id, self.node.node_id,
+                                                            self.node.finger_table[i].node_id, 'left_open'):
             self.node.finger_table[i] = Node(
                 source_id, source_ip, source_port, self.node.m)
             # Ask the predecessor to update the finger table
@@ -252,7 +255,7 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         key = request.key
         file = request.file
         print(f'Chord_server.py  file data received is {file}')
-        file_path = os.path.join(PATH_TO_PROJECT_FOLDER, f'{self.node.node_id} dummy_file')
+        file_path = os.path.join('/Users/suryakangeyan/Projects/Distributed Computing final Project', f'{self.node.node_id} dummy_file')
         try:
             with open(file_path, 'wb') as file:
                 file.write(request.file)
@@ -271,7 +274,15 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         else:
             return chord_pb2.NodeInfo(id=None, ip=None, port=None)
 
-
+    def DeleteKey(self, request, context):
+        key = request.key
+        if key in self.node.store:
+            del self.node.store[key]
+            # if self.node_id!=self.successor.node_id:
+            #     self.del_key_for_sucessor
+            # todo implement delete key from current node's successor cuz thats where it is replicated ,  go into the folder find the file and delete it
+            return chord_pb2.NodeInfo(id=self.node.node_id, ip=self.node.ip, port=self.node.port)
+        return chord_pb2.NodeInfo(id=None, ip=None, port=None)
 def start_server():
     try:
         args = get_args()
@@ -301,7 +312,7 @@ def start_server():
         def run_input_loop():
             while True:
                 inp = input(
-                    "Select an option:\n1. Print Finger Table\n2. Print Successor\n3. Print Predecessor\n4. Leave chord ring\n5. Set Key\n6. Get Key\n7. Show Store\n8. Quit\n")
+                    "Select an option:\n1. Print Finger Table\n2. Print Successor\n3. Print Predecessor\n4. Leave chord ring\n5. Set Key\n6. Get Key\n7. Show Store\n8. Delete key\n9. Quit\n")
                 if inp == "1":
                     print(chord_node.finger_table)
                 elif inp == "2":
@@ -322,6 +333,10 @@ def start_server():
                 elif inp == "7":
                     print(chord_node.store)
                 elif inp == "8":
+                    key = input("Enter the key to delete: ")
+                    result = chord_node.delete(key)
+                    print(f"Key deleted at Node ID: ",result.id)
+                elif inp == "9":
                     print("Shutting down the server.")
                     server.stop(0)
                     break
