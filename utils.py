@@ -1,3 +1,4 @@
+import os
 import hashlib
 import grpc
 from proto import chord_pb2_grpc
@@ -106,3 +107,12 @@ def download_file(file_name, port):
                 f.write(r.buffer)
 
         print(f"File {file_name} downloaded successfully from node {port}")    
+
+
+def generate_requests(file_path):
+    with open(file_path, "rb") as f:
+        while True:
+            chunk = f.read(1024 * 1024)  # Read in chunks of 1 MB
+            if not chunk:
+                break
+            yield chord_pb2.UploadFileRequest(filename=os.path.basename(file_path), buffer=chunk)

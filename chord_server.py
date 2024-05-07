@@ -4,7 +4,7 @@ from proto import chord_pb2_grpc
 import threading
 from concurrent import futures
 import ast
-
+import os
 from utils import sha1_hash, get_args, create_stub, is_in_between, download_file
 from chord.node import Node
 
@@ -67,7 +67,7 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
                                 set_predecessor_request)
                     except Exception as e:
                         print("Will try again updating the predecessor.")
-                    
+
                     # TODO - implement replication bit
                     self.node.replicate_keys_to_successor()
             i += 1
@@ -254,8 +254,7 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         key = request.key
         self.node.store[key] = True
         if self.node.node_id != self.node.successor.node_id:
-              # TODO - implement replication bit
-              self.node.replicate_single_key_to_successor(key)
+            self.node.replicate_single_key_to_successor(key)
 
         return chord_pb2.NodeInfo(id=self.node.node_id, ip=self.node.ip, port=self.node.port)
 
@@ -265,7 +264,7 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
             return chord_pb2.NodeInfo(id=self.node.node_id, ip=self.node.ip, port=self.node.port)
         else:
             return chord_pb2.NodeInfo(id=None, ip=None, port=None)
-        
+
     def ReceiveKeysBeforeLeave(self, request, context):
 
         store_received = ast.literal_eval(request.store)
@@ -274,7 +273,7 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
             self.node.store[key] = store_received[key]
 
         return chord_pb2.Empty()
-    
+
     def DownloadFile(self, request, context):
         file_name = request.filename
         try:
@@ -287,6 +286,32 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         except Exception as e:
             print(f"Error downloading file: {e}")
             return
+
+    # def UploadFile(self, request_iterator, context):
+    #     file_path = os.path.join("uploads", request_iterator.filename)
+    #     print("GOT UPLOAD REQUEST")
+    #     with open(file_path, "wb") as f:
+    #         for request in request_iterator:
+    #             print("request", request)
+    #             if file_path is None:
+    #                 file_path = os.path.join("uploads", request_iterator.filename)
+    #             # Write bytes to file
+    #             f.write(request.data)
+    #     return chord_pb2.UploadFileResponse(message="File uploaded successfully.")
+    def UploadFile(self, request_iterator, context):
+        file_path = None  # Initialize file_path as None to be set on the first request
+        for request in request_iterator:
+            if file_path is None:  # Set the file_path from the first request
+                file_path = os.path.join("uploads", request.filename)
+                with open(file_path, "wb") as f:
+                    # Start writing data from the first request
+                    f.write(request.buffer)
+            else:
+                # Open the file in append mode for subsequent requests
+                with open(file_path, "ab") as f:
+                    f.write(request.buffer)
+
+        return chord_pb2.UploadFileResponse(message=f"File uploaded successfully at node with ID = {self.node.node_id}.")
 
 
 def start_server():
@@ -318,7 +343,7 @@ def start_server():
         def run_input_loop():
             while True:
                 inp = input(
-                    "Select an option:\n1. Print Finger Table\n2. Print Successor\n3. Print Predecessor\n4. Leave chord ring\n5. Set Key\n6. Get Key\n7. Show Store\n8. Download File\n9. Quit\n")
+                    "Select an option:\n1. Print Finger Table\n2. Print Successor\n3. Print Predecessor\n4. Leave chord ring\n5. Set Key\n6. Get Key\n7. Show Store\n8. Download File\n9. Upload File\n10. Quit\n")
                 if inp == "1":
                     print(chord_node.finger_table)
                 elif inp == "2":
@@ -340,13 +365,21 @@ def start_server():
                     print(chord_node.store)
                 elif inp == "8":
                     key = input("Enter the filename to download: ")
-                    # get node id of the key
                     get_result = chord_node.get(key)
                     file_location_port = get_result.port
-                    print("NEED TO DOWNLOAD FROM NODE", get_result)
-                    # file_location_ip = chord_node.get(key).ip
-                    download_file(key, file_location_port)
+                    if file_location_port is None:
+                        print("File not found.")
+                    else:
+                        print("NEED TO DOWNLOAD FROM NODE", get_result)
+                        download_file(key, file_location_port)
                 elif inp == "9":
+                    file_path = input("Enter the filename to upload: ")
+                    if os.path.exists(file_path):
+                        upload_response = chord_node.upload_file(file_path)
+                        print(upload_response.message)
+                    else:
+                        print("File not found.")
+                elif inp == "10":
                     print("Shutting down the server.")
                     server.stop(0)
                     break
