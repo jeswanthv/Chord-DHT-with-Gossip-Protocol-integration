@@ -1,8 +1,9 @@
 import grpc
+from prettytable import PrettyTable, ALL
 
 from proto import chord_pb2
 from proto import chord_pb2_grpc
-from utils import create_stub, is_in_between, sha1_hash
+from utils import create_stub, is_in_between, sha1_hash, generate_requests
 import random
 import ast
 
@@ -19,6 +20,7 @@ class Node:
         self.finger_table = {i: self for i in range(m)}
         self.successor_list = [self for _ in range(3)]
         self.store = {}
+        self.received_gossip_message_ids = set()
 
     def __str__(self):
         return f"Node {self.node_id} at {self.ip}:{self.port}"
@@ -77,8 +79,8 @@ class Node:
                         get_successor_response = predecessor_stub.GetSuccessor(
                             get_successor_request, timeout=5)
                         self.successor = Node(get_successor_response.id,
-                                            get_successor_response.ip,
-                                            get_successor_response.port, self.m)
+                                              get_successor_response.ip,
+                                              get_successor_response.port, self.m)
                         print("Found successor node {}.".format(self.successor))
                     except Exception as e:
                         print(
@@ -160,15 +162,9 @@ class Node:
                 print(e)
 
     def i_start(self, node_id, i) -> int:
-        """
-        Author: Adarsh Trivedi
-        Helper function.
-        :param node_id: Current node id.
-        :param i: node_id + 2^i
-        :return: node_id + 2^i
-        """
+
         start = (node_id + (2 ** (i - 1))) % (2 ** self.m)
-        return start
+        return int(start)
 
     def initialize_finger_table(self, bootstrap_node):
 
@@ -204,13 +200,7 @@ class Node:
                                                   find_successor_response.ip, find_successor_response.port, self.m)
 
     def go_back_n(self, node_id, i) -> int:
-        """
-        Author: Adarsh Trivedi
-        Helper functions.
-        :param node_id: Current node_id
-        :param i: How many steps to move back.
-        :return: id after moving specified steps back.
-        """
+
         diff = node_id - i
 
         if diff >= 0:
@@ -261,27 +251,32 @@ class Node:
         i = random.randint(0, self.m - 1)
         finger_start = (self.node_id + 2**i) % (2**self.m)
         stub, channel = create_stub(self.ip, self.port)
-        with channel:
-            find_successor_request = chord_pb2.FindSuccessorRequest(
-                id=finger_start)
-            find_successor_response = stub.FindSuccessor(
-                find_successor_request, timeout=5)
-            self.finger_table[i] = Node(find_successor_response.id,
-                                        find_successor_response.ip,
-                                        find_successor_response.port, self.m)
-
-        print("Fingers fixed successfully.")
+        try:
+            with channel:
+                find_successor_request = chord_pb2.FindSuccessorRequest(
+                    id=finger_start)
+                find_successor_response = stub.FindSuccessor(
+                    find_successor_request, timeout=5)
+                self.finger_table[i] = Node(find_successor_response.id,
+                                            find_successor_response.ip,
+                                            find_successor_response.port, self.m)
+        except Exception as e:
+            # print("Error fixing finger table: {}".format(e))
+            return
+        # print("Fingers fixed successfully.")
 
     def stabilize(self):
 
-        stub, channel = create_stub(self.ip, self.port)
-        print("Starting stabilization")
-        with channel:
-            set_successor_request = chord_pb2.NodeInfo(
-                id=self.successor.node_id, ip=self.successor.ip, port=self.successor.port)
-            stub.SetSuccessor(set_successor_request, timeout=5)
-
-        print("finished stabilization")
+        try:
+            stub, channel = create_stub(self.ip, self.port)
+            # print("Starting stabilization")
+            with channel:
+                set_successor_request = chord_pb2.NodeInfo(
+                    id=self.successor.node_id, ip=self.successor.ip, port=self.successor.port)
+                stub.SetSuccessor(set_successor_request, timeout=5)
+        except Exception:
+            return
+        # print("finished stabilization")
 
     def initialize_store(self):
 
@@ -294,10 +289,9 @@ class Node:
                 get_transfer_data_request, timeout=5)
 
             data = get_transfer_data_response.data
-
         self.store = ast.literal_eval(data)
 
-    def set(self, key):
+    def set(self, key, filename="not_provided.txt"):
         # print(f"Node.py set() called for key --> {key}")
         hashed_key = sha1_hash(key, self.m)
         # print(f"Node.py set() the hashed key value --> {hashed_key}")
@@ -315,7 +309,7 @@ class Node:
 
         with successor_channel:
             set_key_request = chord_pb2.SetKeyRequest(
-                key=int(key)
+                key=hashed_key, filename=filename
             )
             set_key_response = successor_stub.SetKey(
                 set_key_request, timeout=5)
@@ -341,25 +335,19 @@ class Node:
 
         with successor_channel:
             get_key_request = chord_pb2.GetKeyRequest(
-                key=int(key)
+                key=hashed_key
             )
             get_key_response = successor_stub.GetKey(
                 get_key_request, timeout=5)
 
         return get_key_response
 
-    def set_key(self, key):
-        # hint added by suryakangeyan -->   call get_key here to set the value to the particular node
-        self.store[key] = True
-        # if self.node_id!= self.successor:
-        # w replicate to successor
-
     def replicate_to_successor(self, store=None):
         if not store:
             build_store = {}
             for key in self.store:
-                if self.store[key]:
-                    build_store[key] = False
+                if self.store[key][0]:
+                    build_store[key][0] = False
 
             # stub,channel = create_stub(self.ip,self.port)
             # with channel :  todo need to check if this should be an RPC or just a normal method call
@@ -368,7 +356,7 @@ class Node:
     def receive_keys_before_leave(self, store):
 
         for key in store:
-            self.store[key] = store[key]
+            self.store[key][0] = store[key][0]
 
     def replicate_keys_to_successor(self, store=None):
 
@@ -376,8 +364,8 @@ class Node:
             if not store:
                 build_store = {}
                 for key in self.store:
-                    if self.store[key]:
-                        build_store[key] = False
+                    if self.store[key][0]:
+                        build_store[key] = [False, self.store[key][1]]
                 successor_stub, successor_channel = create_stub(
                     successor.ip, successor.port)
                 with successor_channel:
@@ -397,7 +385,7 @@ class Node:
                         receive_keys_before_leave_request, timeout=5)
 
     def replicate_single_key_to_successor(self, key):
-        store = {key: False}
+        store = {key: [False, self.store[key][1]]}
         self.replicate_keys_to_successor(store)
 
     def transfer_before_leave(self):
@@ -410,58 +398,117 @@ class Node:
             )
             successor_stub.ReceiveKeysBeforeLeave(
                 receive_keys_before_leave_request, timeout=5)
-
-
-
+        
+        self.transfer_files_before_leave()
 
     def leave(self):
-
-        # logger.info("Starting to leave the system.")
-        # logger.info("Setting predecessor's [{}] successor to this node's successor [{}].".
-        #             format(self.get_predecessor(), self.get_successor()))
-        # self.get_xml_client(self.get_predecessor()).set_successor(self.get_successor())
-        # logger.info("Setting successor's [{}] predecessor to this node's predecessor [{}].".
-        #             format(self.get_successor(), self.get_predecessor()))
-        # self.get_xml_client(self.get_successor()).set_predecessor(self.get_predecessor())
-        # logger.info("Updating 1st finger (successor) to this node's successor.")
-        # self.get_xml_client(self.get_predecessor()).update_finger_table(self.get_successor(), 0, True)
-        # logger.info("Transferring keys to responsible node.")
-        # self.transfer_before_leave()
-        # logger.info("Node {} left the system successfully.".format(self.get_node_id()))
 
         print("Starting to leave the system.")
         print("Setting predecessor's [{}] successor to this node's successor [{}].".
               format(self.predecessor, self.successor))
-        predecessor_stub, predecessor_channel=create_stub(
+        predecessor_stub, predecessor_channel = create_stub(
             self.predecessor.ip, self.predecessor.port)
         with predecessor_channel:
-            set_successor_request=chord_pb2.NodeInfo(
+            set_successor_request = chord_pb2.NodeInfo(
                 id=self.successor.node_id, ip=self.successor.ip, port=self.successor.port)
             predecessor_stub.SetSuccessor(set_successor_request, timeout=5)
         print("Setting successor's [{}] predecessor to this node's predecessor [{}].".
               format(self.successor, self.predecessor))
-        successor_stub, successor_channel=create_stub(
+        successor_stub, successor_channel = create_stub(
             self.successor.ip, self.successor.port)
         with successor_channel:
-            set_predecessor_request=chord_pb2.NodeInfo(
+            set_predecessor_request = chord_pb2.NodeInfo(
                 id=self.predecessor.node_id, ip=self.predecessor.ip, port=self.predecessor.port)
             successor_stub.SetPredecessor(set_predecessor_request, timeout=5)
         print("Updating 1st finger (successor) to this node's successor.")
-        predecessor_stub, predecessor_channel=create_stub(
+        predecessor_stub, predecessor_channel = create_stub(
             self.predecessor.ip, self.predecessor.port)
         with predecessor_channel:
-            print("HEREEA calling on", self.predecessor.node_id,
-                  self.predecessor.port)
-            print("params", self.successor.node_id,
-                  self.successor.port, self.successor.ip)
-
-            nodeinfo=chord_pb2.NodeInfo(
+            nodeinfo = chord_pb2.NodeInfo(
                 id=self.successor.node_id, ip=self.successor.ip, port=self.successor.port)
-            update_finger_table_request=chord_pb2.UpdateFingerTableRequest(
+            update_finger_table_request = chord_pb2.UpdateFingerTableRequest(
                 node=nodeinfo, i=0, for_leave=True)
             predecessor_stub.UpdateFingerTable(
                 update_finger_table_request, timeout=5)
-            print("HEREEA2")
         print("Transferring keys to responsible node.")
         self.transfer_before_leave()
         print("Node {} left the system successfully.".format(self.node_id))
+
+    def upload_file(self, file_path):
+        hashed_key = sha1_hash(file_path, self.m)
+        stub, channel = create_stub(self.ip, self.port)
+        with channel:
+            set_key_request = chord_pb2.SetKeyRequest(
+                key=hashed_key, filename=file_path)
+            set_key_response = stub.SetKey(set_key_request, timeout=5)
+            target_node_port = set_key_response.port
+            target_node_ip = set_key_response.ip
+
+        target_node_stub, target_node_channel = create_stub(
+            target_node_ip, target_node_port)
+        with target_node_channel:
+            upload_file_response = target_node_stub.UploadFile(
+                generate_requests(file_path), timeout=5)
+
+        return upload_file_response
+
+    def show_store(self):
+        table = [["No.", "File Name"]]
+        for i, key in enumerate(self.store, start=1):
+            table.append([i, self.store[key][1]])
+
+        tab = PrettyTable(table[0])
+        tab.add_rows(table[1:])
+        tab.hrules = ALL
+        print(tab)
+
+    def show_finger_table(self):
+        table = [["i", "Start", "Successor"]]
+        for i in range(self.m):
+            table.append([i, self.i_start(self.node_id, i),
+                         self.finger_table[i].node_id])
+
+        tab = PrettyTable(table[0])
+        tab.add_rows(table[1:])
+        tab.hrules = ALL
+        print(tab)
+
+    def perform_gossip(self, message_id, message):
+        unique_nodes = {}
+        if message_id not in self.received_gossip_message_ids:
+            self.received_gossip_message_ids.add(message)
+            unique_nodes[self.node_id] = self
+
+        for i in range(self.m):
+            unique_nodes[self.finger_table[i].node_id] = self.finger_table[i]
+
+        for node in unique_nodes:
+            node_stub, node_channel = create_stub(
+                unique_nodes[node].ip, unique_nodes[node].port)
+            with node_channel:
+                gossip_request = chord_pb2.GossipRequest(
+                    message=message, message_id=message_id)
+                node_stub.Gossip(gossip_request, timeout=5)
+                print("Gossip message sent to node with port: {}".format(
+                    unique_nodes[node].port))
+
+    def transfer_files_before_leave(self):
+        files_to_transfer = []
+        for key in self.store:
+            files_to_transfer.append([key, self.store[key][1]])
+
+        successor_stub, successor_channel = create_stub(
+            self.successor.ip, self.successor.port)
+
+        with successor_channel:
+            for file_key, file_path in files_to_transfer:
+                set_key_request = chord_pb2.SetKeyRequest(
+                    key=file_key, filename=file_path)
+                set_key_response = successor_stub.SetKey(
+                    set_key_request, timeout=5)
+                
+                upload_file_response = successor_stub.UploadFile(
+                    generate_requests(file_path), timeout=5)
+                print("Transferred file {} to node with port: {}".format(
+                    file_path, self.successor.port))
+                print("resp:", upload_file_response)

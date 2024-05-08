@@ -60,11 +60,33 @@ message GetKeyResponse {
 
 message SetKeyRequest {
     int32 key = 1;
-    // string data = 2;
+    string filename = 2;
 }
 
 message ReceiveKeysBeforeLeaveRequest {
     string store = 1;
+}
+
+message DownloadFileRequest {
+    string filename = 1;
+}
+
+message DownloadFileResponse {
+    bytes buffer = 1;
+}
+
+message UploadFileRequest {
+    string filename = 1;        // The name of the file being uploaded.
+    bytes buffer = 2;             // Chunk of file data.
+}
+
+message UploadFileResponse {
+    string message = 1;         // Response message, e.g., confirmation message.
+}
+
+message GossipRequest {
+    string message_id = 1;
+    string message = 2;
 }
 
 
@@ -102,5 +124,11 @@ service ChordService {
     rpc SetKey(SetKeyRequest) returns (NodeInfo) {}
 
     rpc ReceiveKeysBeforeLeave(ReceiveKeysBeforeLeaveRequest) returns (Empty) {}
+
+    rpc DownloadFile(DownloadFileRequest) returns (stream DownloadFileResponse) {}
+
+    rpc UploadFile(stream UploadFileRequest) returns (UploadFileResponse) {}
+
+    rpc Gossip(GossipRequest) returns (Empty) {}
     
 }

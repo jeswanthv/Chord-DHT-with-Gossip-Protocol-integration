@@ -4,9 +4,21 @@ from proto import chord_pb2_grpc
 import threading
 from concurrent import futures
 import ast
-
-from utils import sha1_hash, get_args, create_stub, is_in_between
+import os
+from utils import sha1_hash, get_args, create_stub, is_in_between, download_file
 from chord.node import Node
+import time
+import uuid
+
+
+def run_stabilization(node):
+    while True:
+        try:
+            node.stabilize()
+            node.fix_fingers()
+        except Exception as e:
+            print("Error in stabilization loop: ", e)
+        time.sleep(2)  # Sleep for 10 seconds or any other suitable interval
 
 
 class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
@@ -66,9 +78,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
                             successor_stub.SetPredecessor(
                                 set_predecessor_request)
                     except Exception as e:
-                        print("Will try again updating the predecessor.")
-                    
-                    # TODO - implement replication bit
+                        print("Will try again updating the predecessor.", i)
+
                     self.node.replicate_keys_to_successor()
             i += 1
 
@@ -136,26 +147,6 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         """
         id_to_find = request.id
 
-        # IMPLEMENTATION 1
-        # my_id = self.node.node_id
-        # my_successor_id = self.node.successor.node_id
-        # # Check if the requested ID is in the range (my_id, my_successor_id]
-        # if (my_id < id_to_find <= my_successor_id) or (my_id > my_successor_id and (id_to_find > my_id or id_to_find <= my_successor_id)):
-        #     # The current node's successor is the successor of the requested node_id
-        #     response = chord_pb2.NodeInfo()
-        #     response.node_id = self.node.successor.node_id
-        #     response.ip_address = self.node.successor.ip
-        #     response.port = self.node.successor.port
-        #     return response
-        # else:
-        #     # Need to ask the successor to find the successor
-        #     channel = grpc.insecure_channel(
-        #         f'{self.node.successor.ip}:{self.node.successor.port}')
-        #     stub = chord_pb2_grpc.ChordServiceStub(channel)
-        #     successor_request = chord_pb2.FindSuccessorRequest(id=id_to_find)
-        #     return stub.FindSuccessor(successor_request)
-
-        # IMPLEMENTATION 2
         node_stub, node_channel = create_stub(self.node.ip, self.node.port)
         with node_channel:
             find_pred_request = chord_pb2.FindPredecessorRequest(id=id_to_find)
@@ -240,7 +231,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
         for key in self.node.store:
             if is_in_between(key, self.node.node_id, node_id, 'o'):
-                transfer_data[key] = True
+                # transfer_data[key] = True
+                transfer_data[key] = [True, self.node.store[key][1]]
                 keys_to_be_deleted.append(key)
 
         for key in keys_to_be_deleted:
@@ -251,11 +243,11 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         return response
 
     def SetKey(self, request, context):
+        print("SET KEY CALLED", request)
         key = request.key
-        self.node.store[key] = True
+        self.node.store[key] = [True, request.filename]
         if self.node.node_id != self.node.successor.node_id:
-              # TODO - implement replication bit
-              self.node.replicate_single_key_to_successor(key)
+            self.node.replicate_single_key_to_successor(key)
 
         return chord_pb2.NodeInfo(id=self.node.node_id, ip=self.node.ip, port=self.node.port)
 
@@ -265,7 +257,7 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
             return chord_pb2.NodeInfo(id=self.node.node_id, ip=self.node.ip, port=self.node.port)
         else:
             return chord_pb2.NodeInfo(id=None, ip=None, port=None)
-        
+
     def ReceiveKeysBeforeLeave(self, request, context):
 
         store_received = ast.literal_eval(request.store)
@@ -274,6 +266,46 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
             self.node.store[key] = store_received[key]
 
         return chord_pb2.Empty()
+
+    def DownloadFile(self, request, context):
+        file_name = request.filename
+        try:
+            with open(file_name, 'rb') as f:
+                while True:
+                    chunk = f.read(1024)
+                    if not chunk:
+                        break
+                    yield chord_pb2.DownloadFileResponse(buffer=chunk)
+        except Exception as e:
+            print(f"Error downloading file: {e}")
+            return
+
+    def UploadFile(self, request_iterator, context):
+        file_path = None  # Initialize file_path as None to be set on the first request
+        for request in request_iterator:
+            if file_path is None:  # Set the file_path from the first request
+                file_path = os.path.join("uploads", request.filename)
+                with open(file_path, "wb") as f:
+                    # Start writing data from the first request
+                    f.write(request.buffer)
+            else:
+                # Open the file in append mode for subsequent requests
+                with open(file_path, "ab") as f:
+                    f.write(request.buffer)
+
+        return chord_pb2.UploadFileResponse(message=f"File uploaded successfully at node with ID = {self.node.node_id}.")
+
+    def Gossip(self, request, context):
+        message = request.message
+        message_id = request.message_id
+        if message_id in self.node.received_gossip_message_ids:
+            return chord_pb2.Empty()
+        self.node.received_gossip_message_ids.add(message_id)
+        print(f"Node with port: {self.node.port} received message: {message}")
+        self.node.perform_gossip(message_id, message)
+        return chord_pb2.Empty()
+
+
 
 
 def start_server():
@@ -300,20 +332,22 @@ def start_server():
         server.start()
         chord_node.join_chord_ring(bootstrap_node)
 
-        print(f"Server started at {node_ip_address}:{node_port}")
+        print(
+            f"Server started at {node_ip_address}:{node_port} with ID {node_id}")
 
         def run_input_loop():
             while True:
                 inp = input(
-                    "Select an option:\n1. Print Finger Table\n2. Print Successor\n3. Print Predecessor\n4. Leave chord ring\n5. Set Key\n6. Get Key\n7. Show Store\n8. Quit\n")
+                    "Select an option:\n1. Print Finger Table\n2. Print Successor\n3. Print Predecessor\n4. Leave chord ring\n5. Set Key\n6. Get Key\n7. Show Store\n8. Download File\n9. Upload File\n10. Gossip\n11. Quit\n")
                 if inp == "1":
-                    print(chord_node.finger_table)
+                    chord_node.show_finger_table()
                 elif inp == "2":
                     print(chord_node.successor)
                 elif inp == "3":
                     print(chord_node.predecessor)
                 elif inp == "4":
                     chord_node.leave()
+                    break
                 elif inp == "5":
                     key = input("Enter the key to set: ")
                     # Assuming set_key is the correct method
@@ -322,16 +356,42 @@ def start_server():
                 elif inp == "6":
                     key = input("Enter the key to get: ")
                     result = chord_node.get(key)
-                    print("Key found at node ID:", result.id)
+                    print("Key found at node ID:", result)
                 elif inp == "7":
-                    print(chord_node.store)
+                    chord_node.show_store()
+                    print(chord_node.received_gossip_message_ids)
                 elif inp == "8":
+                    key = input("Enter the filename to download: ")
+                    get_result = chord_node.get(key)
+                    file_location_port = get_result.port
+                    file_location_ip = get_result.ip
+                    if file_location_port is None:
+                        print("File not found in chord ring!")
+                    else:
+                        print("NEED TO DOWNLOAD FROM NODE", get_result)
+                        download_file(key, file_location_ip ,file_location_port)
+                elif inp == "9":
+                    file_path = input("Enter the filename to upload: ")
+                    if os.path.exists(file_path):
+                        upload_response = chord_node.upload_file(file_path)
+                        print(upload_response.message)
+                    else:
+                        print("File not found.")
+                elif inp == "10":
+                    message = input("Enter the message to gossip: ")
+                    chord_node.perform_gossip(uuid.uuid4().hex, message)
+                elif inp == "11":
                     print("Shutting down the server.")
-                    server.stop(0)
                     break
                 else:
                     print("Invalid option. Please try again.")
-
+            server.stop(0)
+        # stabilization(chord_node)
+        stabilization_thread = threading.Thread(
+            target=run_stabilization, args=(chord_node,))
+        # Optional: makes this thread a daemon so it won't prevent the program from exiting
+        stabilization_thread.daemon = True
+        stabilization_thread.start()
         # Start the input loop in a separate thread
         thread = threading.Thread(target=run_input_loop)
         thread.start()

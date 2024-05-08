@@ -1,9 +1,10 @@
+import os
 import hashlib
 import grpc
 from proto import chord_pb2_grpc
 import json
 import argparse
-
+from proto import chord_pb2
 
 def sha1_hash(key, m):
     """
@@ -90,3 +91,28 @@ def is_in_between(num, lower, higher, type='c'):
 
     return_type = in_between_flag and not (right_touch_flag or left_touch_flag)
     return return_type
+
+
+def download_file(file_name, ip, port):
+    #using grpc
+
+    stub, channel = create_stub(ip, port)
+
+    with channel:
+        response = stub.DownloadFile(chord_pb2.DownloadFileRequest(filename=file_name))
+        file_name = "new-file-" + file_name
+        
+        with open(file_name, 'wb') as f:
+            for r in response:
+                f.write(r.buffer)
+
+        print(f"File {file_name} downloaded successfully from node {port}")    
+
+
+def generate_requests(file_path):
+    with open(file_path, "rb") as f:
+        while True:
+            chunk = f.read(1024 * 1024)  # Read in chunks of 1 MB
+            if not chunk:
+                break
+            yield chord_pb2.UploadFileRequest(filename=os.path.basename(file_path), buffer=chunk)

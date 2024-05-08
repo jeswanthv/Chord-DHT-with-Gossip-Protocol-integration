@@ -104,6 +104,21 @@ class ChordServiceStub(object):
                 request_serializer=proto_dot_chord__pb2.ReceiveKeysBeforeLeaveRequest.SerializeToString,
                 response_deserializer=proto_dot_chord__pb2.Empty.FromString,
                 _registered_method=True)
+        self.DownloadFile = channel.unary_stream(
+                '/chord.ChordService/DownloadFile',
+                request_serializer=proto_dot_chord__pb2.DownloadFileRequest.SerializeToString,
+                response_deserializer=proto_dot_chord__pb2.DownloadFileResponse.FromString,
+                _registered_method=True)
+        self.UploadFile = channel.stream_unary(
+                '/chord.ChordService/UploadFile',
+                request_serializer=proto_dot_chord__pb2.UploadFileRequest.SerializeToString,
+                response_deserializer=proto_dot_chord__pb2.UploadFileResponse.FromString,
+                _registered_method=True)
+        self.Gossip = channel.unary_unary(
+                '/chord.ChordService/Gossip',
+                request_serializer=proto_dot_chord__pb2.GossipRequest.SerializeToString,
+                response_deserializer=proto_dot_chord__pb2.Empty.FromString,
+                _registered_method=True)
 
 
 class ChordServiceServicer(object):
@@ -194,6 +209,24 @@ class ChordServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def DownloadFile(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def UploadFile(self, request_iterator, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def Gossip(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_ChordServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -260,6 +293,21 @@ def add_ChordServiceServicer_to_server(servicer, server):
             'ReceiveKeysBeforeLeave': grpc.unary_unary_rpc_method_handler(
                     servicer.ReceiveKeysBeforeLeave,
                     request_deserializer=proto_dot_chord__pb2.ReceiveKeysBeforeLeaveRequest.FromString,
+                    response_serializer=proto_dot_chord__pb2.Empty.SerializeToString,
+            ),
+            'DownloadFile': grpc.unary_stream_rpc_method_handler(
+                    servicer.DownloadFile,
+                    request_deserializer=proto_dot_chord__pb2.DownloadFileRequest.FromString,
+                    response_serializer=proto_dot_chord__pb2.DownloadFileResponse.SerializeToString,
+            ),
+            'UploadFile': grpc.stream_unary_rpc_method_handler(
+                    servicer.UploadFile,
+                    request_deserializer=proto_dot_chord__pb2.UploadFileRequest.FromString,
+                    response_serializer=proto_dot_chord__pb2.UploadFileResponse.SerializeToString,
+            ),
+            'Gossip': grpc.unary_unary_rpc_method_handler(
+                    servicer.Gossip,
+                    request_deserializer=proto_dot_chord__pb2.GossipRequest.FromString,
                     response_serializer=proto_dot_chord__pb2.Empty.SerializeToString,
             ),
     }
@@ -612,6 +660,87 @@ class ChordService(object):
             target,
             '/chord.ChordService/ReceiveKeysBeforeLeave',
             proto_dot_chord__pb2.ReceiveKeysBeforeLeaveRequest.SerializeToString,
+            proto_dot_chord__pb2.Empty.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DownloadFile(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(
+            request,
+            target,
+            '/chord.ChordService/DownloadFile',
+            proto_dot_chord__pb2.DownloadFileRequest.SerializeToString,
+            proto_dot_chord__pb2.DownloadFileResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UploadFile(request_iterator,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.stream_unary(
+            request_iterator,
+            target,
+            '/chord.ChordService/UploadFile',
+            proto_dot_chord__pb2.UploadFileRequest.SerializeToString,
+            proto_dot_chord__pb2.UploadFileResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def Gossip(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chord.ChordService/Gossip',
+            proto_dot_chord__pb2.GossipRequest.SerializeToString,
             proto_dot_chord__pb2.Empty.FromString,
             options,
             channel_credentials,
