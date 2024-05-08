@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  bootstrap_node:
+    image: chord-node
+    command: python chord_server.py --ip bootstrap_node --port 50051
+    stdin_open: true
+    tty: true
+    networks:
+      chord_network:
+        aliases:
+          - bootstrap_node
+    ports:
+      - "50051:50051"
+
+  node:
+    image: chord-node
+    command: python chord_server.py --ip node --port 50051 --bootstrap_ip bootstrap_node --bootstrap_port 50051
+    depends_on:
+      - bootstrap_node
+    stdin_open: true
+    tty: true
+    networks:
+      - chord_network
+    deploy:
+      replicas: 5
+
+networks:
+  chord_network:
+    driver: bridge
