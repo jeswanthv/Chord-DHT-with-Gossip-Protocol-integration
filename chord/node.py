@@ -7,6 +7,7 @@ from utils import create_stub, is_in_between, sha1_hash, generate_requests
 import random
 import ast
 
+
 class Node:
     def __init__(self, node_id: int, ip: str, port: int, m):
         self.ip = str(ip)
@@ -308,7 +309,7 @@ class Node:
 
         with successor_channel:
             set_key_request = chord_pb2.SetKeyRequest(
-                key=hashed_key, filename = filename
+                key=hashed_key, filename=filename
             )
             set_key_response = successor_stub.SetKey(
                 set_key_request, timeout=5)
@@ -397,6 +398,8 @@ class Node:
             )
             successor_stub.ReceiveKeysBeforeLeave(
                 receive_keys_before_leave_request, timeout=5)
+        
+        self.transfer_files_before_leave()
 
     def leave(self):
 
@@ -435,7 +438,8 @@ class Node:
         hashed_key = sha1_hash(file_path, self.m)
         stub, channel = create_stub(self.ip, self.port)
         with channel:
-            set_key_request = chord_pb2.SetKeyRequest(key=hashed_key, filename=file_path)
+            set_key_request = chord_pb2.SetKeyRequest(
+                key=hashed_key, filename=file_path)
             set_key_response = stub.SetKey(set_key_request, timeout=5)
             target_node_port = set_key_response.port
             target_node_ip = set_key_response.ip
@@ -447,13 +451,12 @@ class Node:
                 generate_requests(file_path), timeout=5)
 
         return upload_file_response
-    
 
     def show_store(self):
         table = [["No.", "File Name"]]
         for i, key in enumerate(self.store, start=1):
             table.append([i, self.store[key][1]])
-        
+
         tab = PrettyTable(table[0])
         tab.add_rows(table[1:])
         tab.hrules = ALL
@@ -462,8 +465,9 @@ class Node:
     def show_finger_table(self):
         table = [["i", "Start", "Successor"]]
         for i in range(self.m):
-            table.append([i, self.i_start(self.node_id, i), self.finger_table[i].node_id])
-        
+            table.append([i, self.i_start(self.node_id, i),
+                         self.finger_table[i].node_id])
+
         tab = PrettyTable(table[0])
         tab.add_rows(table[1:])
         tab.hrules = ALL
@@ -474,18 +478,37 @@ class Node:
         if message_id not in self.received_gossip_message_ids:
             self.received_gossip_message_ids.add(message)
             unique_nodes[self.node_id] = self
-        
+
         for i in range(self.m):
             unique_nodes[self.finger_table[i].node_id] = self.finger_table[i]
-        
+
         for node in unique_nodes:
-            node_stub, node_channel = create_stub(unique_nodes[node].ip, unique_nodes[node].port)
+            node_stub, node_channel = create_stub(
+                unique_nodes[node].ip, unique_nodes[node].port)
             with node_channel:
-                gossip_request = chord_pb2.GossipRequest(message=message, message_id=message_id)
+                gossip_request = chord_pb2.GossipRequest(
+                    message=message, message_id=message_id)
                 node_stub.Gossip(gossip_request, timeout=5)
-                print("Gossip message sent to node with port: {}".format(unique_nodes[node].port))
+                print("Gossip message sent to node with port: {}".format(
+                    unique_nodes[node].port))
 
-        
+    def transfer_files_before_leave(self):
+        files_to_transfer = []
+        for key in self.store:
+            files_to_transfer.append([key, self.store[key][1]])
 
+        successor_stub, successor_channel = create_stub(
+            self.successor.ip, self.successor.port)
 
-
+        with successor_channel:
+            for file_key, file_path in files_to_transfer:
+                set_key_request = chord_pb2.SetKeyRequest(
+                    key=file_key, filename=file_path)
+                set_key_response = successor_stub.SetKey(
+                    set_key_request, timeout=5)
+                
+                upload_file_response = successor_stub.UploadFile(
+                    generate_requests(file_path), timeout=5)
+                print("Transferred file {} to node with port: {}".format(
+                    file_path, self.successor.port))
+                print("resp:", upload_file_response)

@@ -366,7 +366,7 @@ def start_server():
                     file_location_port = get_result.port
                     file_location_ip = get_result.ip
                     if file_location_port is None:
-                        print("File not found.")
+                        print("File not found in chord ring!")
                     else:
                         print("NEED TO DOWNLOAD FROM NODE", get_result)
                         download_file(key, file_location_ip ,file_location_port)
