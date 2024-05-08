@@ -7,7 +7,6 @@ from utils import create_stub, is_in_between, sha1_hash, generate_requests
 import random
 import ast
 
-
 class Node:
     def __init__(self, node_id: int, ip: str, port: int, m):
         self.ip = str(ip)
@@ -20,7 +19,7 @@ class Node:
         self.finger_table = {i: self for i in range(m)}
         self.successor_list = [self for _ in range(3)]
         self.store = {}
-        self.gossip_messages = set()
+        self.received_gossip_message_ids = set()
 
     def __str__(self):
         return f"Node {self.node_id} at {self.ip}:{self.port}"
@@ -470,10 +469,10 @@ class Node:
         tab.hrules = ALL
         print(tab)
 
-    def perform_gossip(self, message="hey there!"):
+    def perform_gossip(self, message_id, message):
         unique_nodes = {}
-        if message not in self.gossip_messages:
-            self.gossip_messages.add(message)
+        if message_id not in self.received_gossip_message_ids:
+            self.received_gossip_message_ids.add(message)
             unique_nodes[self.node_id] = self
         
         for i in range(self.m):
@@ -482,7 +481,7 @@ class Node:
         for node in unique_nodes:
             node_stub, node_channel = create_stub(unique_nodes[node].ip, unique_nodes[node].port)
             with node_channel:
-                gossip_request = chord_pb2.GossipRequest(message=message)
+                gossip_request = chord_pb2.GossipRequest(message=message, message_id=message_id)
                 node_stub.Gossip(gossip_request, timeout=5)
                 print("Gossip message sent to node with port: {}".format(unique_nodes[node].port))
 

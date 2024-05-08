@@ -8,6 +8,7 @@ import os
 from utils import sha1_hash, get_args, create_stub, is_in_between, download_file
 from chord.node import Node
 import time
+import uuid
 
 
 def run_stabilization(node):
@@ -296,11 +297,12 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
     def Gossip(self, request, context):
         message = request.message
-        if message in self.node.gossip_messages:
+        message_id = request.message_id
+        if message_id in self.node.received_gossip_message_ids:
             return chord_pb2.Empty()
-        self.node.gossip_messages.add(message)
+        self.node.received_gossip_message_ids.add(message_id)
         print(f"Node with port: {self.node.port} received message: {message}")
-        self.node.perform_gossip(message)
+        self.node.perform_gossip(message_id, message)
         return chord_pb2.Empty()
 
 
@@ -357,7 +359,7 @@ def start_server():
                     print("Key found at node ID:", result)
                 elif inp == "7":
                     chord_node.show_store()
-                    print(chord_node.gossip_messages)
+                    print(chord_node.received_gossip_message_ids)
                 elif inp == "8":
                     key = input("Enter the filename to download: ")
                     get_result = chord_node.get(key)
@@ -377,7 +379,7 @@ def start_server():
                         print("File not found.")
                 elif inp == "10":
                     message = input("Enter the message to gossip: ")
-                    chord_node.perform_gossip(message)
+                    chord_node.perform_gossip(uuid.uuid4().hex, message)
                 elif inp == "11":
                     print("Shutting down the server.")
                     break
