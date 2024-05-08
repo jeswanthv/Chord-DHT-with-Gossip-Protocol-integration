@@ -6,6 +6,7 @@ from proto import chord_pb2_grpc
 from utils import create_stub, is_in_between, sha1_hash, generate_requests
 import random
 import ast
+from constants import successor_count
 
 
 class Node:
@@ -18,11 +19,14 @@ class Node:
         self.predecessor = None
         self.successor = None
         self.finger_table = {i: self for i in range(m)}
-        self.successor_list = [self for _ in range(3)]
+        self.successor_list = [self for _ in range(successor_count)]
         self.store = {}
         self.received_gossip_message_ids = set()
 
     def __str__(self):
+        return f"Node {self.node_id} at {self.ip}:{self.port}"
+    
+    def __repr__(self):
         return f"Node {self.node_id} at {self.ip}:{self.port}"
 
     def join_chord_ring(self, bootstrap_node):
@@ -342,17 +346,6 @@ class Node:
 
         return get_key_response
 
-    def replicate_to_successor(self, store=None):
-        if not store:
-            build_store = {}
-            for key in self.store:
-                if self.store[key][0]:
-                    build_store[key][0] = False
-
-            # stub,channel = create_stub(self.ip,self.port)
-            # with channel :  todo need to check if this should be an RPC or just a normal method call
-            # self.successor.
-
     def receive_keys_before_leave(self, store):
 
         for key in store:
@@ -398,7 +391,7 @@ class Node:
             )
             successor_stub.ReceiveKeysBeforeLeave(
                 receive_keys_before_leave_request, timeout=5)
-        
+
         self.transfer_files_before_leave()
 
     def leave(self):
@@ -497,18 +490,22 @@ class Node:
         for key in self.store:
             files_to_transfer.append([key, self.store[key][1]])
 
-        successor_stub, successor_channel = create_stub(
-            self.successor.ip, self.successor.port)
+        for i, successor in enumerate(self.successor_list):
 
-        with successor_channel:
-            for file_key, file_path in files_to_transfer:
-                set_key_request = chord_pb2.SetKeyRequest(
-                    key=file_key, filename=file_path)
-                set_key_response = successor_stub.SetKey(
-                    set_key_request, timeout=5)
-                
-                upload_file_response = successor_stub.UploadFile(
-                    generate_requests(file_path), timeout=5)
-                print("Transferred file {} to node with port: {}".format(
-                    file_path, self.successor.port))
-                print("resp:", upload_file_response)
+            successor_stub, successor_channel = create_stub(
+                successor.ip, successor.port)
+
+            with successor_channel:
+
+                for file_key, file_path in files_to_transfer:
+                    set_key_request = chord_pb2.SetKeyRequest(
+                        key=file_key, filename=file_path)
+                    set_key_response = successor_stub.SetKey(
+                        set_key_request, timeout=5)
+
+                    upload_file_response = successor_stub.UploadFile(
+                        generate_requests(file_path), timeout=5)
+                    
+                    print("Transferred file {} to node with ip: {} and port: {}".format(
+                        file_path, successor.ip, successor.port))
+                    print("resp:", upload_file_response)

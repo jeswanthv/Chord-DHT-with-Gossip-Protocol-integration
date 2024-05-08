@@ -6,6 +6,7 @@ from concurrent import futures
 import ast
 import os
 from utils import sha1_hash, get_args, create_stub, is_in_between, download_file
+from constants import m, successor_count, stabalization_interval
 from chord.node import Node
 import time
 import uuid
@@ -17,8 +18,8 @@ def run_stabilization(node):
             node.stabilize()
             node.fix_fingers()
         except Exception as e:
-            print("Error in stabilization loop: ", e)
-        time.sleep(2)  # Sleep for 10 seconds or any other suitable interval
+            print("Error in stabilization process: ", e)
+        time.sleep(stabalization_interval)  # Sleep for 10 seconds or any other suitable interval
 
 
 class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
@@ -43,7 +44,7 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         self.node.successor_list[0] = self.node.successor
 
         i = 1
-        while i < 3:
+        while i < successor_count:
             intermediate_node = self.node.successor_list[i-1]
             try:
                 if intermediate_node is not None:
@@ -269,6 +270,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
     def DownloadFile(self, request, context):
         file_name = request.filename
+        # Add stpre dorectory to the file name
+        file_name = os.path.join("uploads", file_name)
         try:
             with open(file_name, 'rb') as f:
                 while True:
@@ -343,6 +346,7 @@ def start_server():
                     chord_node.show_finger_table()
                 elif inp == "2":
                     print(chord_node.successor)
+                    print("Successor List:", chord_node.successor_list)
                 elif inp == "3":
                     print(chord_node.predecessor)
                 elif inp == "4":

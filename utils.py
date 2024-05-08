@@ -100,7 +100,7 @@ def download_file(file_name, ip, port):
 
     with channel:
         response = stub.DownloadFile(chord_pb2.DownloadFileRequest(filename=file_name))
-        file_name = "new-file-" + file_name
+        file_name = os.path.join("downloads", file_name)
         
         with open(file_name, 'wb') as f:
             for r in response:
