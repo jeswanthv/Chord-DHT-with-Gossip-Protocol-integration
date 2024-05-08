@@ -5,7 +5,7 @@ import threading
 from concurrent import futures
 import ast
 import os
-from utils import sha1_hash, get_args, create_stub, is_in_between, download_file
+from utils import sha1_hash, get_args, create_stub, is_in_between, download_file, menu_options, load_ssl_credentials
 from constants import m, successor_count, stabalization_interval
 from chord.node import Node
 import time
@@ -331,7 +331,10 @@ def start_server():
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         chord_pb2_grpc.add_ChordServiceServicer_to_server(
             ChordNodeServicer(chord_node), server)
-        server.add_insecure_port(f"[::]:{node_port}")
+        # server.add_insecure_port(f"[::]:{node_port}")
+        ssl_credentials = load_ssl_credentials()
+        server.add_secure_port(f"[::]:{node_port}", ssl_credentials)
+
         server.start()
         chord_node.join_chord_ring(bootstrap_node)
 
@@ -340,8 +343,10 @@ def start_server():
 
         def run_input_loop():
             while True:
-                inp = input(
-                    "Select an option:\n1. Print Finger Table\n2. Print Successor\n3. Print Predecessor\n4. Leave chord ring\n5. Set Key\n6. Get Key\n7. Show Store\n8. Download File\n9. Upload File\n10. Gossip\n11. Quit\n")
+                # inp = input(
+                #     "Select an option:\n1. Print Finger Table\n2. Print Successor\n3. Print Predecessor\n4. Leave chord ring\n5. Set Key\n6. Get Key\n7. Show Store\n8. Download File\n9. Upload File\n10. Gossip\n11. Quit\n")
+                print(menu_options())
+                inp = input("\nSelect an option: ")
                 if inp == "1":
                     chord_node.show_finger_table()
                 elif inp == "2":

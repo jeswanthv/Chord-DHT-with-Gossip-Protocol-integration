@@ -5,6 +5,8 @@ from proto import chord_pb2_grpc
 import json
 import argparse
 from proto import chord_pb2
+from prettytable import PrettyTable, ALL
+
 
 def sha1_hash(key, m):
     """
@@ -18,13 +20,43 @@ def sha1_hash(key, m):
     return int(hashlib.sha1(str(key).encode()).hexdigest(), 16) % (2**m)
 
 
-def create_stub(ip, port):
+# def create_stub(ip, port):
+#     """
+#     Helper method to create and return a gRPC stub.
+#     Uses a context manager to ensure the channel is closed after use.
+#     """
+#     channel = grpc.insecure_channel(f'{ip}:{port}')
+#     return chord_pb2_grpc.ChordServiceStub(channel), channel
+
+
+def create_stub(ip, port, cert_file='server.crt'):
     """
     Helper method to create and return a gRPC stub.
     Uses a context manager to ensure the channel is closed after use.
+    The communication is secured using SSL/TLS.
+    
+    Args:
+        ip (str): The IP address of the server.
+        port (int): The port on which the server is running.
+        cert_file (str): Path to the SSL certificate file for secure communication.
+
+    Returns:
+        tuple: A tuple containing the gRPC stub and the channel.
     """
-    channel = grpc.insecure_channel(f'{ip}:{port}')
-    return chord_pb2_grpc.ChordServiceStub(channel), channel
+    # Load the server's certificate
+    with open(cert_file, 'rb') as f:
+        trusted_certs = f.read()
+
+    # Create SSL credentials using the loaded certificate
+    credentials = grpc.ssl_channel_credentials(root_certificates=trusted_certs)
+
+    # Create a secure channel with the credentials
+    channel = grpc.secure_channel(f'{ip}:{port}', credentials)
+
+    # Create a stub from the channel
+    stub = chord_pb2_grpc.ChordServiceStub(channel)
+
+    return stub, channel
 
 
 def get_args():
@@ -40,7 +72,7 @@ def get_args():
     return parser.parse_args()
 
 # def is_in_between(num, lower_bound, upper_bound, boundary_type):
-    
+
 #     if lower_bound <= upper_bound:
 #         # Normal range (not wrapping around the modulus)
 #         if boundary_type == 'closed':
@@ -57,7 +89,6 @@ def get_args():
 #             return num >= lower_bound or num < upper_bound
 #         elif boundary_type == 'left_open':
 #             return num > lower_bound or num <= upper_bound
-
 
 
 def is_in_between(num, lower, higher, type='c'):
@@ -94,19 +125,20 @@ def is_in_between(num, lower, higher, type='c'):
 
 
 def download_file(file_name, ip, port):
-    #using grpc
+    # using grpc
 
     stub, channel = create_stub(ip, port)
 
     with channel:
-        response = stub.DownloadFile(chord_pb2.DownloadFileRequest(filename=file_name))
+        response = stub.DownloadFile(
+            chord_pb2.DownloadFileRequest(filename=file_name))
         file_name = os.path.join("downloads", file_name)
-        
+
         with open(file_name, 'wb') as f:
             for r in response:
                 f.write(r.buffer)
 
-        print(f"File {file_name} downloaded successfully from node {port}")    
+        print(f"File {file_name} downloaded successfully from node {port}")
 
 
 def generate_requests(file_path):
@@ -116,3 +148,27 @@ def generate_requests(file_path):
             if not chunk:
                 break
             yield chord_pb2.UploadFileRequest(filename=os.path.basename(file_path), buffer=chunk)
+
+
+def menu_options():
+    table = [["No.", "Option"], [1, "Display Finger Table"], ["2", "Display Successor"], ["3", "Display Predecessor"], ["4", "Leave Chord Ring"], [
+        "5", "Set Key"], ["6", "Get Key"], ["7", "Show Store"], ["8", "Download File"], ["9", "Upload File"], ["10", "Perform Gossip"], ["11", "Exit"]]
+
+    tab = PrettyTable(table[0])
+    tab.add_rows(table[1:])
+    tab.hrules = ALL
+    return tab
+
+
+def load_ssl_credentials():
+    # Load the server's key and certificate files
+    with open('server.key', 'rb') as f:
+        private_key = f.read()
+    with open('server.crt', 'rb') as f:
+        certificate_chain = f.read()
+
+    # Create a server credentials object
+    server_credentials = grpc.ssl_server_credentials(
+        ((private_key, certificate_chain,),))
+    
+    return server_credentials
