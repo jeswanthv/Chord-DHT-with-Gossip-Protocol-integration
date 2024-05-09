@@ -1,15 +1,76 @@
+"""
+This module defines the Node class for managing nodes in a Chord distributed hash table (DHT). 
+Each node in the network maintains information about its successor and predecessor nodes 
+and a finger table for efficient key lookups.
+
+The Node class encapsulates functionalities necessary for joining the network, maintaining 
+the network structure through stabilization processes, handling key-value storage, and 
+facilitating file uploads and downloads within the DHT.
+
+Dependencies:
+    grpc: For RPC communication between nodes in the DHT.
+    prettytable: To display tables in a human-readable format for debugging and monitoring.
+    proto (chord_pb2, chord_pb2_grpc): Contains the protobuf definitions for the DHT.
+    utils: Includes utility functions such as create_stub for gRPC stub creation, is_within_bounds
+           to check numerical boundaries, sha1_hash for hashing keys, and generate_requests for 
+           constructing file transfer requests.
+    random, ast: Standard Python libraries used for random choices and safely evaluating strings 
+                 into Python expressions respectively.
+    constants: Configurations such as SUCCESSOR_COUNT are defined here.
+"""
+
+
 import grpc
 from prettytable import PrettyTable, ALL
 
 from proto import chord_pb2
 from proto import chord_pb2_grpc
-from utils import create_stub, is_in_between, sha1_hash, generate_requests
+from utils import create_stub, is_within_bounds, sha1_hash, generate_requests, logger
 import random
 import ast
-from constants import successor_count
+from constants import SUCCESSOR_COUNT
 
 
 class Node:
+    """
+    Represents a node in a Chord distributed hash table (DHT).
+
+    This class encapsulates the functionalities necessary for node operations within the Chord network,
+    including joining and leaving the network, maintaining the network's stability through periodic operations,
+    handling key-value storage, and facilitating file uploads and downloads.
+
+    Attributes:
+        ip (str): IP address of the node.
+        port (int): Port number on which the node listens for incoming connections.
+        node_id (int): Unique identifier for the node within the Chord ring.
+        m (int): The number of bits in the hash keys used in the Chord protocol, determining the ring's size.
+        finger_table (dict): A dictionary representing the finger table. Each entry maps an index to a node,
+                            helping in efficient routing.
+        predecessor (Node): The node's immediate predecessor in the Chord ring.
+        successor (Node): The node's immediate successor in the Chord ring.
+        successor_list ([Node]): A list of successors for reliability and fault tolerance.
+        store (dict): A dictionary representing the key-value store located at this node.
+        received_gossip_message_ids (set): A set of IDs of gossip messages received to prevent re-processing.
+
+    Methods:
+        __init__(self, node_id, ip, port, m): Initializes a new node with the given identifier, IP address,
+                                            port, and hash key length.
+        join_chord_ring(self, bootstrap_node): Joins the Chord ring using the given bootstrap node if provided.
+                                            If no bootstrap node is given, initializes a new Chord ring.
+        stabilize(self): Periodically verifies the node's immediate successor and updates necessary references.
+        fix_fingers(self): Updates the finger table entries periodically to maintain efficient routing capability.
+        update_other_nodes(self): Notifies other nodes to update their finger tables with this node's information.
+        leave(self): Properly leaves the Chord network, transferring keys and updating other nodes' references.
+
+    Usage:
+        A node can be instantiated and then used to join a network:
+            node = Node(node_id=123, ip='192.168.1.1', port=50051, m=160)
+            node.join_chord_ring(bootstrap_node=None)  # Starts a new Chord ring if no bootstrap node is provided
+
+        Once part of the network, the node will automatically handle its responsibilities through internal methods,
+        but methods like leave() can be called to manually remove the node from the network.
+    """
+
     def __init__(self, node_id: int, ip: str, port: int, m):
         self.ip = str(ip)
         self.port = int(port)
@@ -19,34 +80,35 @@ class Node:
         self.predecessor = None
         self.successor = None
         self.finger_table = {i: self for i in range(m)}
-        self.successor_list = [self for _ in range(successor_count)]
+        self.successor_list = [self for _ in range(SUCCESSOR_COUNT)]
         self.store = {}
         self.received_gossip_message_ids = set()
+        self.received_gossip_messages = []
 
     def __str__(self):
-        return f"Node {self.node_id} at {self.ip}:{self.port}"
+        return f"{self.ip}:{self.port}"
 
     def __repr__(self):
-        return f"Node {self.node_id} at {self.ip}:{self.port}"
+        return f"{self.ip}:{self.port}"
 
     def join_chord_ring(self, bootstrap_node):
         """
         Join an existing node in the chord ring
         """
 
-        print("Starting join ....")
+        logger.info(f"[Node ID: {self.node_id}] Starting join ....")
 
         if not bootstrap_node:
-            print("No bootstrap server provided. Starting a new chord ring.")
+            logger.info(
+                f"[Node ID: {self.node_id}] No bootstrap server provided. Starting a new chord ring.")
             self.successor = self
             self.predecessor = self
             for i in range(self.m):
                 self.finger_table[i] = self
-            print("Finger table initialized to self.")
         else:
             try:
-                print("Joining an existing chord ring with bootstrap server {}.".format(
-                    bootstrap_node))
+                logger.info(
+                    f"[Node ID: {self.node_id}] Joining an existing chord ring with bootstrap server {bootstrap_node}.")
                 bootstrap_stub, bootstrap_channel = create_stub(
                     bootstrap_node.ip, bootstrap_node.port)
 
@@ -58,13 +120,15 @@ class Node:
                         find_predecessor_response = bootstrap_stub.FindPredecessor(
                             find_predecessor_request, timeout=5)
                     except Exception as e:
-                        print("Error connecting to the bootstrap node: {}".format(e))
+                        logger.error(
+                            f"[Node ID: {self.node_id}] Error connecting to the bootstrap node: {e}")
                         return
 
                     self.predecessor = Node(find_predecessor_response.id,
                                             find_predecessor_response.ip,
                                             find_predecessor_response.port, self.m)
-                    print("Found predecessor node {}.".format(self.predecessor))
+                    logger.info(
+                        f"[Node ID: {self.node_id}] Found predecessor node {self.predecessor}.")
 
                 self_stub, self_channel = create_stub(self.ip, self.port)
                 with self_channel:
@@ -85,10 +149,11 @@ class Node:
                         self.successor = Node(get_successor_response.id,
                                               get_successor_response.ip,
                                               get_successor_response.port, self.m)
-                        print("Found successor node {}.".format(self.successor))
+                        logger.info(
+                            f"[Node ID: {self.node_id}] Found successor node {self.successor}.")
                     except Exception as e:
-                        print(
-                            "Error connecting to the predecessor node: {}".format(e))
+                        logger.error(
+                            f"[Node ID: {self.node_id}] Error connecting to the predecessor node: {e}")
                         return
 
                 self_stub, self_channel = create_stub(self.ip, self.port)
@@ -99,13 +164,17 @@ class Node:
                     self_stub.SetSuccessor(set_successor_request, timeout=5)
 
                 self.initialize_finger_table(bootstrap_node)
-                print("Finger table initialized successfully.")
-                print("Starting to update others.")
-                self.update_other_nodes()
-                print("Successfully updated others about this join.")
+                logger.info(
+                    f"[Node ID: {self.node_id}] Finger table initialized successfully.")
 
-                print(
-                    "Updating this node's successor's predecessor pointer to this node.")
+                logger.info(
+                    f"[Node ID: {self.node_id}] Starting to update nodes in the chord ring.")
+                self.update_other_nodes()
+                logger.info(
+                    f"[Node ID: {self.node_id}] Successfully updated other nodes about this join.")
+
+                logger.info(
+                    f"[Node ID: {self.node_id}] Updating this node's successor's predecessor pointer to this node.")
 
                 self_stub, self_channel = create_stub(
                     self.ip, self.port)
@@ -126,7 +195,8 @@ class Node:
                     successor_stub.SetPredecessor(
                         set_predecessor_request, timeout=5)
 
-                print("Successfully updated the successor's predecessor pointer.")
+                logger.info(
+                    f"[Node ID: {self.node_id}] Successfully updated the successor's predecessor pointer.")
 
                 self_stub, self_channel = create_stub(
                     self.ip, self.port)
@@ -138,8 +208,8 @@ class Node:
                     self.predecessor = Node(
                         get_predecessor_response.id, get_predecessor_response.ip, get_predecessor_response.port, self.m)
 
-                print(
-                    "Updating this node's predecessor's successor pointer to this node.")
+                logger.info(
+                    f"[Node ID: {self.node_id}] Updating this node's predecessor's successor pointer to this node.")
                 predecessor_stub, predecessor_channel = create_stub(
                     self.predecessor.ip, self.predecessor.port)
 
@@ -149,21 +219,24 @@ class Node:
                     predecessor_stub.SetSuccessor(
                         set_successor_request, timeout=5)
 
-                print("Successfully updated the predecessor's successor pointer.")
+                logger.info(
+                    f"[Node ID: {self.node_id}] Successfully updated the predecessor's successor pointer.")
 
-                print("Initializing hash table to get this node's keys.")
+                logger.info(
+                    f"[Node ID: {self.node_id}] Initializing hash table to get this node's keys.")
                 self.initialize_store()
-                print("Successfully initialized hash table.")
+                logger.info(
+                    f"[Node ID: {self.node_id}] Successfully initialized hash table.")
 
-                print("Starting replication to successors.")
-                # TODO - Implement replication bit
+                logger.info(
+                    f"[Node ID: {self.node_id}] Starting replication to successors.")
                 self.replicate_keys_to_successor()
-                print("Replication successful.")
+                logger.info(
+                    f"[Node ID: {self.node_id}] Replication successful.")
 
             except Exception as e:
-                print("Error joining the chord ring through bootstrap node: {}".format(
-                    bootstrap_node.port))
-                print(e)
+                logger.error(
+                    f"[Node ID: {self.node_id}] Error joining the chord ring through bootstrap node: {bootstrap_node}")
 
     def i_start(self, node_id, i) -> int:
 
@@ -188,7 +261,7 @@ class Node:
 
         for i in range(self.m-1):
             # finger_start = (self.node_id + 2**i) % (2**self.m)
-            if is_in_between(self.i_start(self.node_id, i+2), self.node_id, self.finger_table[i].node_id, 'l'):
+            if is_within_bounds(self.i_start(self.node_id, i+2), self.node_id, self.finger_table[i].node_id, 'l'):
                 self.finger_table[i+1] = self.finger_table[i]
 
             else:
@@ -244,8 +317,6 @@ class Node:
                     node=self_node_info, i=i, for_leave=False)
                 pred_stub.UpdateFingerTable(
                     update_finger_table_request, timeout=5)
-
-        print("Updated other nodes successfully.")
 
     def fix_fingers(self):
         """
@@ -352,43 +423,40 @@ class Node:
             self.store[key][0] = store[key][0]
 
     def replicate_keys_to_successor(self, store=None):
+        try:
+            for i, successor in enumerate(self.successor_list):
+                if not store:
+                    build_store = {}
+                    for key in self.store:
+                        if self.store[key][0]:
+                            build_store[key] = [False, self.store[key][1]]
+                    successor_stub, successor_channel = create_stub(
+                        successor.ip, successor.port)
+                    with successor_channel:
+                        receive_keys_before_leave_request = chord_pb2.ReceiveKeysBeforeLeaveRequest(
+                            store=str(build_store)
+                        )
+                        successor_stub.ReceiveKeysBeforeLeave(
+                            receive_keys_before_leave_request, timeout=5)
 
-        for i, successor in enumerate(self.successor_list):
-            if not store:
-                build_store = {}
-                for key in self.store:
-                    if self.store[key][0]:
-                        build_store[key] = [False, self.store[key][1]]
-                successor_stub, successor_channel = create_stub(
-                    successor.ip, successor.port)
-                with successor_channel:
-                    receive_keys_before_leave_request = chord_pb2.ReceiveKeysBeforeLeaveRequest(
-                        store=str(build_store)
-                    )
-                    successor_stub.ReceiveKeysBeforeLeave(
-                        receive_keys_before_leave_request, timeout=5)
-                    
-                    for key in build_store:
-                        successor_stub.UploadFile(
-                            generate_requests(build_store[key][1]), timeout=5)
-            else:
-                successor_stub, successor_channel = create_stub(
-                    successor.ip, successor.port)
-                with successor_channel:
-                    receive_keys_before_leave_request = chord_pb2.ReceiveKeysBeforeLeaveRequest(
-                        store=str(store)
-                    )
-                    successor_stub.ReceiveKeysBeforeLeave(
-                        receive_keys_before_leave_request, timeout=5)
+                        for key in build_store:
+                            successor_stub.UploadFile(
+                                generate_requests(build_store[key][1]), timeout=5)
+                else:
+                    successor_stub, successor_channel = create_stub(
+                        successor.ip, successor.port)
+                    with successor_channel:
+                        receive_keys_before_leave_request = chord_pb2.ReceiveKeysBeforeLeaveRequest(
+                            store=str(store)
+                        )
+                        successor_stub.ReceiveKeysBeforeLeave(
+                            receive_keys_before_leave_request, timeout=5)
 
-                    for key in store:
-                        successor_stub.UploadFile(
-                            generate_requests(store[key][1]), timeout=5)
-                        
-
-                        
-                    
-
+                        for key in store:
+                            successor_stub.UploadFile(
+                                generate_requests(store[key][1]), timeout=5)
+        except Exception as e:
+            pass
 
     def replicate_single_key_to_successor(self, key):
         store = {key: [False, self.store[key][1]]}
@@ -400,33 +468,33 @@ class Node:
             self.successor.ip, self.successor.port)
         with successor_channel:
             receive_keys_before_leave_request = chord_pb2.ReceiveKeysBeforeLeaveRequest(
-                store = str(self.store)
+                store=str(self.store)
             )
             successor_stub.ReceiveKeysBeforeLeave(
-                receive_keys_before_leave_request, timeout = 5)
+                receive_keys_before_leave_request, timeout=5)
 
         self.transfer_files_before_leave()
 
     def leave(self):
 
-        print("Starting to leave the system.")
-        print("Setting predecessor's [{}] successor to this node's successor [{}].".
-              format(self.predecessor, self.successor))
+        logger.info(f"[Node ID: {self.node_id}] Starting to leave the system.")
+        logger.info(
+            f"[Node ID: {self.node_id}] Setting predecessor's [{self.predecessor}] successor to this node's successor [{self.successor}].")
         predecessor_stub, predecessor_channel = create_stub(
             self.predecessor.ip, self.predecessor.port)
         with predecessor_channel:
             set_successor_request = chord_pb2.NodeInfo(
                 id=self.successor.node_id, ip=self.successor.ip, port=self.successor.port)
             predecessor_stub.SetSuccessor(set_successor_request, timeout=5)
-        print("Setting successor's [{}] predecessor to this node's predecessor [{}].".
-              format(self.successor, self.predecessor))
+        logger.info(
+            f"[Node ID: {self.node_id}] Setting successor's [{self.successor}] predecessor to this node's predecessor [{self.predecessor}].")
         successor_stub, successor_channel = create_stub(
             self.successor.ip, self.successor.port)
         with successor_channel:
             set_predecessor_request = chord_pb2.NodeInfo(
                 id=self.predecessor.node_id, ip=self.predecessor.ip, port=self.predecessor.port)
             successor_stub.SetPredecessor(set_predecessor_request, timeout=5)
-        print("Updating 1st finger (successor) to this node's successor.")
+
         predecessor_stub, predecessor_channel = create_stub(
             self.predecessor.ip, self.predecessor.port)
         with predecessor_channel:
@@ -436,9 +504,13 @@ class Node:
                 node=nodeinfo, i=0, for_leave=True)
             predecessor_stub.UpdateFingerTable(
                 update_finger_table_request, timeout=5)
-        print("Transferring keys to responsible node.")
+
+        logger.info(
+            f"[Node ID: {self.node_id}] Transferring all the files to appropriate node.")
         self.transfer_before_leave()
-        print("Node {} left the system successfully.".format(self.node_id))
+
+        logger.info(
+            f"[Node ID: {self.node_id}] Node {self.ip}:{self.port} left the system successfully.")
 
     def upload_file(self, file_path):
         hashed_key = sha1_hash(file_path, self.m)
@@ -483,10 +555,15 @@ class Node:
         unique_nodes = {}
         if message_id not in self.received_gossip_message_ids:
             self.received_gossip_message_ids.add(message)
-            unique_nodes[self.node_id] = self
+            self.received_gossip_messages.append(message)
+            # unique_nodes[self.node_id] = self
+        else:
+            return
 
         for i in range(self.m):
             unique_nodes[self.finger_table[i].node_id] = self.finger_table[i]
+
+        unique_nodes.pop(self.node_id, None)
 
         for node in unique_nodes:
             node_stub, node_channel = create_stub(
@@ -495,8 +572,10 @@ class Node:
                 gossip_request = chord_pb2.GossipRequest(
                     message=message, message_id=message_id)
                 node_stub.Gossip(gossip_request, timeout=5)
-                print("Gossip message sent to node with port: {}".format(
-                    unique_nodes[node].port))
+                print(
+                    f"[Node ID: {self.node_id}] Gossip message sent to node {unique_nodes[node].ip}:{unique_nodes[node].port}")
+                logger.info(
+                    f"[Node ID: {self.node_id}] Gossip message sent to node {unique_nodes[node].ip}:{unique_nodes[node].port}")
 
     def transfer_files_before_leave(self):
         files_to_transfer = []
@@ -518,7 +597,6 @@ class Node:
 
                     upload_file_response = successor_stub.UploadFile(
                         generate_requests(file_path), timeout=5)
-                    
-                    print("Transferred file {} to node with ip: {} and port: {}".format(
-                        file_path, successor.ip, successor.port))
-                    print("resp:", upload_file_response)
+
+                    logger.info(
+                        f"[Node ID: {self.node_id}] Transferred file {file_path} to node with ip: {successor.ip} and port: {successor.port}")

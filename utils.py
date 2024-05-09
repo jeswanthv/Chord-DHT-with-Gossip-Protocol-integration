@@ -6,6 +6,7 @@ import json
 import argparse
 from proto import chord_pb2
 from prettytable import PrettyTable, ALL
+import logging
 
 
 def sha1_hash(key, m):
@@ -34,7 +35,7 @@ def create_stub(ip, port):
     # Helper method to create and return a gRPC stub.
     # Uses a context manager to ensure the channel is closed after use.
     # The communication is secured using SSL/TLS.
-    
+
     # Args:
     #     ip (str): The IP address of the server.
     #     port (int): The port on which the server is running.
@@ -72,57 +73,32 @@ def get_args():
     parser.add_argument("-i", "--interactive", action="store_true")
     return parser.parse_args()
 
-# def is_in_between(num, lower_bound, upper_bound, boundary_type):
 
-#     if lower_bound <= upper_bound:
-#         # Normal range (not wrapping around the modulus)
-#         if boundary_type == 'closed':
-#             return lower_bound <= num <= upper_bound
-#         elif boundary_type == 'right_open':
-#             return lower_bound <= num < upper_bound
-#         elif boundary_type == 'left_open':
-#             return lower_bound < num <= upper_bound
-#     else:
-#         # Range wraps around the modulus, e.g., (350, 10) in a circle of 0-359
-#         if boundary_type == 'closed':
-#             return num >= lower_bound or num <= upper_bound
-#         elif boundary_type == 'right_open':
-#             return num >= lower_bound or num < upper_bound
-#         elif boundary_type == 'left_open':
-#             return num > lower_bound or num <= upper_bound
+def is_within_bounds(value, start, end, inclusion_type='c'):
 
-
-def is_in_between(num, lower, higher, type='c'):
-    """
-    Author: Ishan Goel
-    Helper function. Implements belongs_to mathematical function in context of a modulus style chord ring.
-    :param num: id
-    :param limits: boundaries (tuple of two elements)
-    :param type: c: closed, r: right closed, l:left closed
-    :return: bool
-    """
-    # min_limit, max_limit = limits
-
-    if lower == num and (type == 'l' or type == 'c'):
+    if start == value and (inclusion_type == 'l' or inclusion_type == 'c'):
         return True
 
-    if higher == num and (type == 'r' or type == 'c'):
+    if end == value and (inclusion_type == 'r' or inclusion_type == 'c'):
         return True
 
-    in_between_flag = None
-    if lower == higher:
-        in_between_flag = True
+    is_within = None
+    if start == end:
+        is_within = True
     else:
-        if lower < higher:
-            in_between_flag = (lower < num) and (num < higher)
+        if start < end:
+            is_within = (start < value) and (value < end)
         else:
-            in_between_flag = not ((higher < num) and (num < lower))
+            is_within = not ((end < value) and (value < start))
 
-    right_touch_flag = (num == lower) and not ((type == 'c') or (type == 'l'))
-    left_touch_flag = (num == higher) and not ((type == 'c') or (type == 'r'))
+    touches_right_boundary = (value == start) and not (
+        (inclusion_type == 'c') or (inclusion_type == 'l'))
+    touches_left_boundary = (value == end) and not (
+        (inclusion_type == 'c') or (inclusion_type == 'r'))
 
-    return_type = in_between_flag and not (right_touch_flag or left_touch_flag)
-    return return_type
+    result = is_within and not (
+        touches_right_boundary or touches_left_boundary)
+    return result
 
 
 def download_file(file_name, ip, port):
@@ -152,8 +128,8 @@ def generate_requests(file_path):
 
 
 def menu_options():
-    table = [["No.", "Option"], [1, "Display Finger Table"], ["2", "Display Successor"], ["3", "Display Predecessor"], ["4", "Leave Chord Ring"], [
-        "5", "Set Key"], ["6", "Get Key"], ["7", "Show Store"], ["8", "Download File"], ["9", "Upload File"], ["10", "Perform Gossip"], ["11", "Exit"]]
+    table = [["No.", "Option"], ["1", "Display Finger Table"], ["2", "Display Successor"], ["3", "Display Predecessor"], [
+        "4", "Show Store"], ["5", "Upload File"], ["6", "Download File"], ["7", "Perform Gossip"], ["8", "Leave Chord Ring (Graceful)"], ["9", "Shut Down Peer"]]
 
     tab = PrettyTable(table[0])
     tab.add_rows(table[1:])
@@ -171,5 +147,10 @@ def load_ssl_credentials():
     # Create a server credentials object
     server_credentials = grpc.ssl_server_credentials(
         ((private_key, certificate_chain,),))
-    
+
     return server_credentials
+
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(filename='example.log', encoding='utf-8', level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s -> %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
