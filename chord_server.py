@@ -5,7 +5,8 @@ import threading
 from concurrent import futures
 import ast
 import os
-from utils import sha1_hash, get_args, create_stub, is_in_between, download_file
+from utils import sha1_hash, get_args, create_stub, is_in_between, download_file, menu_options, load_ssl_credentials
+from constants import m, successor_count, stabalization_interval
 from chord.node import Node
 import time
 import uuid
@@ -17,8 +18,8 @@ def run_stabilization(node):
             node.stabilize()
             node.fix_fingers()
         except Exception as e:
-            print("Error in stabilization loop: ", e)
-        time.sleep(2)  # Sleep for 10 seconds or any other suitable interval
+            print("Error in stabilization process: ", e)
+        time.sleep(stabalization_interval)  # Sleep for 10 seconds or any other suitable interval
 
 
 class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
@@ -43,7 +44,7 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         self.node.successor_list[0] = self.node.successor
 
         i = 1
-        while i < 3:
+        while i < successor_count:
             intermediate_node = self.node.successor_list[i-1]
             try:
                 if intermediate_node is not None:
@@ -269,6 +270,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
     def DownloadFile(self, request, context):
         file_name = request.filename
+        # Add stpre dorectory to the file name
+        file_name = os.path.join("uploads", file_name)
         try:
             with open(file_name, 'rb') as f:
                 while True:
@@ -301,7 +304,7 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         if message_id in self.node.received_gossip_message_ids:
             return chord_pb2.Empty()
         self.node.received_gossip_message_ids.add(message_id)
-        print(f"Node with port: {self.node.port} received message: {message}")
+        print(f"Node with port: {self.node.port} received message: {message}", flush=True)
         self.node.perform_gossip(message_id, message)
         return chord_pb2.Empty()
 
@@ -317,7 +320,7 @@ def start_server():
         node_id = sha1_hash(f"{node_ip_address}:{node_port}", m)
         bootstrap_ip = args.bootstrap_ip
         bootstrap_port = args.bootstrap_port
-
+        interactive_mode = args.interactive
         chord_node = Node(node_id, node_ip_address, node_port, m)
         bootstrap_node = None
 
@@ -329,20 +332,26 @@ def start_server():
         chord_pb2_grpc.add_ChordServiceServicer_to_server(
             ChordNodeServicer(chord_node), server)
         server.add_insecure_port(f"[::]:{node_port}")
+        # ssl_credentials = load_ssl_credentials()
+        # server.add_secure_port(f"[::]:{node_port}", ssl_credentials)
+
         server.start()
         chord_node.join_chord_ring(bootstrap_node)
 
         print(
-            f"Server started at {node_ip_address}:{node_port} with ID {node_id}")
+            f"Server started at {node_ip_address}:{node_port} with ID {node_id}", flush=True)
 
         def run_input_loop():
             while True:
-                inp = input(
-                    "Select an option:\n1. Print Finger Table\n2. Print Successor\n3. Print Predecessor\n4. Leave chord ring\n5. Set Key\n6. Get Key\n7. Show Store\n8. Download File\n9. Upload File\n10. Gossip\n11. Quit\n")
+                # inp = input(
+                #     "Select an option:\n1. Print Finger Table\n2. Print Successor\n3. Print Predecessor\n4. Leave chord ring\n5. Set Key\n6. Get Key\n7. Show Store\n8. Download File\n9. Upload File\n10. Gossip\n11. Quit\n")
+                print(menu_options())
+                inp = input("\nSelect an option: ")
                 if inp == "1":
                     chord_node.show_finger_table()
                 elif inp == "2":
                     print(chord_node.successor)
+                    print("Successor List:", chord_node.successor_list)
                 elif inp == "3":
                     print(chord_node.predecessor)
                 elif inp == "4":
@@ -393,12 +402,13 @@ def start_server():
         stabilization_thread.daemon = True
         stabilization_thread.start()
         # Start the input loop in a separate thread
-        thread = threading.Thread(target=run_input_loop)
-        thread.start()
+        if interactive_mode:
+            thread = threading.Thread(target=run_input_loop)
+            thread.start()
+            thread.join()
 
         # Wait for the server termination and input thread to finish
         server.wait_for_termination()
-        thread.join()
 
     except Exception as e:
         print("error occurred", e)
