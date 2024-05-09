@@ -6,8 +6,8 @@
     
 ## How to run (Containterized version)
 
-    1. docker run -it --net chord-network --name node1 chord-node python chord_server.py --ip node1 --port 50051  
-    2. docker run -it --net chord-network --name node2 chord-node python chord_server.py --ip node2 --port 50051 --bootstrap_ip node1 --bootstrap_port 50051
+    1. docker run -it --net chord-network --name node1 chord-node python chord_server.py --ip node1 --port 50051 -i
+    2. docker run -it --net chord-network --name node2 chord-node python chord_server.py --ip node2 --port 50051 --bootstrap_ip node1 --bootstrap_port 50051 -i
 
 ## How to run (localhost)
     1. python chord_server.py --ip localhost --port 5001 

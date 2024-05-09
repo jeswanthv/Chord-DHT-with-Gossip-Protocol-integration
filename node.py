@@ -33,6 +33,7 @@ import os
 
 os.environ['GRPC_VERBOSITY'] = 'NONE'
 
+
 class Node:
     """
     Represents a node in a Chord distributed hash table (DHT).
@@ -406,13 +407,14 @@ class Node:
             # todo added by suryakangeyan -->   call get_key here to set the value to the particular  node
             find_successor_response = stub.FindSuccessor(
                 find_successor_request, timeout=5)
-
+        print("Find Successor Response: ", find_successor_response)
+        return find_successor_response
         successor_stub, successor_channel = create_stub(
             find_successor_response.ip, find_successor_response.port)
 
         with successor_channel:
             get_key_request = chord_pb2.GetKeyRequest(
-                key=hashed_key
+                key=key
             )
             get_key_response = successor_stub.GetKey(
                 get_key_request, timeout=5)
@@ -521,11 +523,17 @@ class Node:
             set_key_request = chord_pb2.SetKeyRequest(
                 key=hashed_key, filename=file_path)
             set_key_response = stub.SetKey(set_key_request, timeout=5)
-            target_node_port = set_key_response.port
-            target_node_ip = set_key_response.ip
+            # target_node_port = set_key_response.port
+            # target_node_ip = set_key_response.ip
+            find_successor_request = chord_pb2.FindSuccessorRequest(
+                id=hashed_key)
+            find_successor_response = stub.FindSuccessor(
+                find_successor_request, timeout=5)
 
+        # print("Find Successor Response: ", find_successor_response)
         target_node_stub, target_node_channel = create_stub(
-            target_node_ip, target_node_port)
+            find_successor_response.ip, find_successor_response.port)
+        
         with target_node_channel:
             upload_file_response = target_node_stub.UploadFile(
                 generate_requests(file_path), timeout=5)

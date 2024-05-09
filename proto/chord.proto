@@ -51,7 +51,7 @@ message GetTransferDataResponse {
 }
 
 message GetKeyRequest {
-    int32 key = 1;
+    string key = 1;
 }
 
 message GetKeyResponse {
