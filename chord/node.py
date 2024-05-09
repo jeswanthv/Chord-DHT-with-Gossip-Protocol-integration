@@ -29,7 +29,9 @@ from utils import create_stub, is_within_bounds, sha1_hash, generate_requests, l
 import random
 import ast
 from constants import SUCCESSOR_COUNT
+import os
 
+os.environ['GRPC_VERBOSITY'] = 'NONE'
 
 class Node:
     """
@@ -554,11 +556,9 @@ class Node:
     def perform_gossip(self, message_id, message):
         unique_nodes = {}
         if message_id not in self.received_gossip_message_ids:
-            self.received_gossip_message_ids.add(message)
+            self.received_gossip_message_ids.add(message_id)
             self.received_gossip_messages.append(message)
             # unique_nodes[self.node_id] = self
-        else:
-            return
 
         for i in range(self.m):
             unique_nodes[self.finger_table[i].node_id] = self.finger_table[i]

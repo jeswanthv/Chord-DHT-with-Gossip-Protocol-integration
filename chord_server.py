@@ -94,10 +94,9 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
                         self.node.successor_list[i] = Node(
                             get_successor_response.id, get_successor_response.ip, get_successor_response.port, self.node.m)
             except Exception as e:
-                print("BOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOM")
                 self.node.successor_list[i-1] = self.node.successor_list[i]
                 if i == 1:
-                    print(f"Suspect a crash for node {self.node.successor}.")
+                    print(f"Suspect a crash for node {self.node.successor}")
                     logger.warning(
                         f"[Node ID: {self.node.node_id}] Suspect a crash for node {self.node.successor}.")
                     self.node.successor = self.node.successor_list[i]
@@ -187,7 +186,7 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
                 response.port = current_node.port
                 return response
 
-        except Exception as e:
+        except Exception:
             logger.error(f"[Node ID: {self.node.node_id}] Error while finding predecessor.")
 
     def FindSuccessor(self, request, context):
@@ -340,6 +339,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         except Exception as e:
             print(f"Error downloading file: {e}")
             logger.warning(f"[Node ID: {self.node.node_id}] Error downloading file: {e}")
+            context.set_code(grpc.StatusCode.NOT_FOUND)
+            context.set_details('File not found')
             return
 
     def UploadFile(self, request_iterator, context):
@@ -365,8 +366,10 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         try:
             message = request.message
             message_id = request.message_id
+
             if message_id in self.node.received_gossip_message_ids:
                 return chord_pb2.Empty()
+            
             self.node.received_gossip_message_ids.add(message_id)
             self.node.received_gossip_messages.append(message)
 

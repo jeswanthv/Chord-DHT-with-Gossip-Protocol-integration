@@ -8,7 +8,6 @@ from proto import chord_pb2
 from prettytable import PrettyTable, ALL
 import logging
 
-os.environ['GRPC_VERBOSITY'] = 'NONE'
 
 def sha1_hash(key, m):
     """
