@@ -304,7 +304,7 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
         if message_id in self.node.received_gossip_message_ids:
             return chord_pb2.Empty()
         self.node.received_gossip_message_ids.add(message_id)
-        print(f"Node with port: {self.node.port} received message: {message}")
+        print(f"Node with port: {self.node.port} received message: {message}", flush=True)
         self.node.perform_gossip(message_id, message)
         return chord_pb2.Empty()
 
@@ -320,7 +320,7 @@ def start_server():
         node_id = sha1_hash(f"{node_ip_address}:{node_port}", m)
         bootstrap_ip = args.bootstrap_ip
         bootstrap_port = args.bootstrap_port
-
+        interactive_mode = args.interactive
         chord_node = Node(node_id, node_ip_address, node_port, m)
         bootstrap_node = None
 
@@ -331,15 +331,15 @@ def start_server():
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         chord_pb2_grpc.add_ChordServiceServicer_to_server(
             ChordNodeServicer(chord_node), server)
-        # server.add_insecure_port(f"[::]:{node_port}")
-        ssl_credentials = load_ssl_credentials()
-        server.add_secure_port(f"[::]:{node_port}", ssl_credentials)
+        server.add_insecure_port(f"[::]:{node_port}")
+        # ssl_credentials = load_ssl_credentials()
+        # server.add_secure_port(f"[::]:{node_port}", ssl_credentials)
 
         server.start()
         chord_node.join_chord_ring(bootstrap_node)
 
         print(
-            f"Server started at {node_ip_address}:{node_port} with ID {node_id}")
+            f"Server started at {node_ip_address}:{node_port} with ID {node_id}", flush=True)
 
         def run_input_loop():
             while True:
@@ -402,12 +402,13 @@ def start_server():
         stabilization_thread.daemon = True
         stabilization_thread.start()
         # Start the input loop in a separate thread
-        thread = threading.Thread(target=run_input_loop)
-        thread.start()
+        if interactive_mode:
+            thread = threading.Thread(target=run_input_loop)
+            thread.start()
+            thread.join()
 
         # Wait for the server termination and input thread to finish
         server.wait_for_termination()
-        thread.join()
 
     except Exception as e:
         print("error occurred", e)

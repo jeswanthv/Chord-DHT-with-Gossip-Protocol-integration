@@ -20,43 +20,43 @@ def sha1_hash(key, m):
     return int(hashlib.sha1(str(key).encode()).hexdigest(), 16) % (2**m)
 
 
-# def create_stub(ip, port):
-#     """
-#     Helper method to create and return a gRPC stub.
-#     Uses a context manager to ensure the channel is closed after use.
-#     """
-#     channel = grpc.insecure_channel(f'{ip}:{port}')
-#     return chord_pb2_grpc.ChordServiceStub(channel), channel
-
-
-def create_stub(ip, port, cert_file='server.crt'):
+def create_stub(ip, port):
     """
     Helper method to create and return a gRPC stub.
     Uses a context manager to ensure the channel is closed after use.
-    The communication is secured using SSL/TLS.
-    
-    Args:
-        ip (str): The IP address of the server.
-        port (int): The port on which the server is running.
-        cert_file (str): Path to the SSL certificate file for secure communication.
-
-    Returns:
-        tuple: A tuple containing the gRPC stub and the channel.
     """
-    # Load the server's certificate
-    with open(cert_file, 'rb') as f:
-        trusted_certs = f.read()
+    channel = grpc.insecure_channel(f'{ip}:{port}')
+    return chord_pb2_grpc.ChordServiceStub(channel), channel
 
-    # Create SSL credentials using the loaded certificate
-    credentials = grpc.ssl_channel_credentials(root_certificates=trusted_certs)
 
-    # Create a secure channel with the credentials
-    channel = grpc.secure_channel(f'{ip}:{port}', credentials)
+# def create_stub(ip, port, cert_file='certs/server.crt'):
+    # """
+    # Helper method to create and return a gRPC stub.
+    # Uses a context manager to ensure the channel is closed after use.
+    # The communication is secured using SSL/TLS.
+    
+    # Args:
+    #     ip (str): The IP address of the server.
+    #     port (int): The port on which the server is running.
+    #     cert_file (str): Path to the SSL certificate file for secure communication.
 
-    # Create a stub from the channel
-    stub = chord_pb2_grpc.ChordServiceStub(channel)
+    # Returns:
+    #     tuple: A tuple containing the gRPC stub and the channel.
+    # """
+    # # Load the server's certificate
+    # with open(cert_file, 'rb') as f:
+    #     trusted_certs = f.read()
 
-    return stub, channel
+    # # Create SSL credentials using the loaded certificate
+    # credentials = grpc.ssl_channel_credentials(root_certificates=trusted_certs)
+
+    # # Create a secure channel with the credentials
+    # channel = grpc.secure_channel(f'{ip}:{port}', credentials)
+
+    # # Create a stub from the channel
+    # stub = chord_pb2_grpc.ChordServiceStub(channel)
+
+    # return stub, channel
 
 
 def get_args():
@@ -69,6 +69,7 @@ def get_args():
                         help="IP address of the bootstrap node", required=False)
     parser.add_argument("--bootstrap_port", type=int,
                         help="Port number of the bootstrap node", required=False)
+    parser.add_argument("-i", "--interactive", action="store_true")
     return parser.parse_args()
 
 # def is_in_between(num, lower_bound, upper_bound, boundary_type):
@@ -162,9 +163,9 @@ def menu_options():
 
 def load_ssl_credentials():
     # Load the server's key and certificate files
-    with open('server.key', 'rb') as f:
+    with open('certs/server.key', 'rb') as f:
         private_key = f.read()
-    with open('server.crt', 'rb') as f:
+    with open('certs/server.crt', 'rb') as f:
         certificate_chain = f.read()
 
     # Create a server credentials object

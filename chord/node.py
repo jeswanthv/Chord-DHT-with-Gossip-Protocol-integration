@@ -25,7 +25,7 @@ class Node:
 
     def __str__(self):
         return f"Node {self.node_id} at {self.ip}:{self.port}"
-    
+
     def __repr__(self):
         return f"Node {self.node_id} at {self.ip}:{self.port}"
 
@@ -367,6 +367,10 @@ class Node:
                     )
                     successor_stub.ReceiveKeysBeforeLeave(
                         receive_keys_before_leave_request, timeout=5)
+                    
+                    for key in build_store:
+                        successor_stub.UploadFile(
+                            generate_requests(build_store[key][1]), timeout=5)
             else:
                 successor_stub, successor_channel = create_stub(
                     successor.ip, successor.port)
@@ -376,6 +380,15 @@ class Node:
                     )
                     successor_stub.ReceiveKeysBeforeLeave(
                         receive_keys_before_leave_request, timeout=5)
+
+                    for key in store:
+                        successor_stub.UploadFile(
+                            generate_requests(store[key][1]), timeout=5)
+                        
+
+                        
+                    
+
 
     def replicate_single_key_to_successor(self, key):
         store = {key: [False, self.store[key][1]]}
@@ -387,10 +400,10 @@ class Node:
             self.successor.ip, self.successor.port)
         with successor_channel:
             receive_keys_before_leave_request = chord_pb2.ReceiveKeysBeforeLeaveRequest(
-                store=str(self.store)
+                store = str(self.store)
             )
             successor_stub.ReceiveKeysBeforeLeave(
-                receive_keys_before_leave_request, timeout=5)
+                receive_keys_before_leave_request, timeout = 5)
 
         self.transfer_files_before_leave()
 
