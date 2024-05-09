@@ -3,7 +3,7 @@ from utils import download_file, create_stub, generate_requests
 import uuid
 from proto import chord_pb2
 import time
-from chord.node import Node
+from node import Node
 import os
 os.environ['GRPC_VERBOSITY'] = 'NONE'
 
@@ -29,11 +29,26 @@ def perform_gossip(ip, port, message):
         print(response)
 
 
-def performance(chord_node, ip, port):
-    start = time.time()
-    chord_node.upload_file("requirements.txt", ip, port)
-    end = time.time()
-    print(f"Upload time: {end - start}")
+def performance(chord_node):
+    # Upload Latency
+    upload_times = []
+    for _ in range(100):
+        start = time.time()
+        chord_node.upload_file("test.py")
+        end = time.time()
+        upload_times.append(end - start)
+    
+    print(f"Average Upload Latency: {sum(upload_times) / len(upload_times)}")
+
+    # Download Latency
+    download_times = []
+    for _ in range(100):
+        start = time.time()
+        chord_node.get("test.py")
+        end = time.time()
+        download_times.append(end - start)
+    
+    print(f"Average Download Latency: {sum(download_times) / len(download_times)}")
 
 
 ip = input("Enter the IP address of bootstrap node: ")
@@ -66,7 +81,7 @@ while True:
         message = input("Enter the gossip message: ")
         perform_gossip(ip, port, message)
     elif choice == "4":
-        performance(chord_node, ip, port)
+        performance(chord_node)
     elif choice == "5":
         break
     else:

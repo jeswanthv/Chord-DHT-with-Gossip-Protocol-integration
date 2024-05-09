@@ -1,6 +1,5 @@
 """
-This module implements a Chord distributed hash table (DHT) node and provides RPC service handling 
-for Chord protocol operations such as joining the network, finding successors and predecessors, 
+This module provides RPC service handling for Chord protocol operations such as joining the network, finding successors and predecessors, 
 and stabilizing the network. The module leverages gRPC for inter-node communication and implements 
 necessary functionalities to maintain and query the distributed hash table efficiently.
 
@@ -39,7 +38,7 @@ import ast
 import os
 from utils import sha1_hash, get_args, create_stub, is_within_bounds, download_file, menu_options, load_ssl_credentials, logger
 from constants import M, SUCCESSOR_COUNT, STABALIZATION_INTERVAL, STORE_DIR, DOWNLOAD_DIR
-from chord.node import Node
+from node import Node
 import time
 import uuid
 import logging
@@ -53,7 +52,8 @@ def run_stabilization(node):
             node.stabilize()
             node.fix_fingers()
         except Exception as e:
-            logger.exception(f"[Node ID: {node.node_id}] Error in stabilization process")
+            logger.exception(
+                f"[Node ID: {node.node_id}] Error in stabilization process")
         time.sleep(STABALIZATION_INTERVAL)
 
 
@@ -70,7 +70,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
             response.port = self.node.successor.port
             return response
         except Exception as e:
-            logger.exception(f"[Node ID: {self.node.node_id}] Error while getting successor.")
+            logger.exception(
+                f"[Node ID: {self.node.node_id}] Error while getting successor.")
 
     def SetSuccessor(self, request, context):
 
@@ -134,7 +135,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
             return response
         except Exception as e:
-            logger.exception(f"[Node ID: {self.node.node_id}] Error while getting predecessor.")
+            logger.exception(
+                f"[Node ID: {self.node.node_id}] Error while getting predecessor.")
 
     def SetPredecessor(self, request, context):
         try:
@@ -144,7 +146,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
             self.node.predecessor = Node(id, ip, port, self.node.m)
             return chord_pb2.Empty()
         except Exception as e:
-            logger.exception(f"[Node ID: {self.node.node_id}] Error while setting predecessor.")
+            logger.exception(
+                f"[Node ID: {self.node.node_id}] Error while setting predecessor.")
 
     def FindPredecessor(self, request, context):
         try:
@@ -187,7 +190,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
                 return response
 
         except Exception:
-            logger.error(f"[Node ID: {self.node.node_id}] Error while finding predecessor.")
+            logger.error(
+                f"[Node ID: {self.node.node_id}] Error while finding predecessor.")
 
     def FindSuccessor(self, request, context):
         """
@@ -212,7 +216,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
             return get_succ_response
         except Exception as e:
-            logger.error(f"[Node ID: {self.node.node_id}] Error while finding successor.")
+            logger.error(
+                f"[Node ID: {self.node.node_id}] Error while finding successor.")
 
     def FindClosestPrecedingFinger(self, request, context):
         try:
@@ -230,7 +235,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
             response.port = self.node.port
             return response
         except Exception as e:
-            logger.error(f"[Node ID: {self.node.node_id}] Error while finding closest preceding finger.")
+            logger.error(
+                f"[Node ID: {self.node.node_id}] Error while finding closest preceding finger.")
 
     def UpdateFingerTable(self, request, context):
         i = request.i
@@ -292,7 +298,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
             response.data = str(transfer_data)
             return response
         except Exception as e:
-            logger.error(f"[Node ID: {self.node.node_id}] Error while getting transfer data.")
+            logger.error(
+                f"[Node ID: {self.node.node_id}] Error while getting transfer data.")
 
     def SetKey(self, request, context):
         try:
@@ -303,7 +310,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
             return chord_pb2.NodeInfo(id=self.node.node_id, ip=self.node.ip, port=self.node.port)
         except Exception as e:
-            logger.error(f"[Node ID: {self.node.node_id}] Error while setting key.")
+            logger.error(
+                f"[Node ID: {self.node.node_id}] Error while setting key.")
 
     def GetKey(self, request, context):
         try:
@@ -313,7 +321,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
             else:
                 return chord_pb2.NodeInfo(id=None, ip=None, port=None)
         except Exception as e:
-            logger.error(f"[Node ID: {self.node.node_id}] Error while getting key.")
+            logger.error(
+                f"[Node ID: {self.node.node_id}] Error while getting key.")
 
     def ReceiveKeysBeforeLeave(self, request, context):
         try:
@@ -324,7 +333,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
             return chord_pb2.Empty()
         except Exception as e:
-            logger.error(f"[Node ID: {self.node.node_id}] Error while receiving keys before leave.")
+            logger.error(
+                f"[Node ID: {self.node.node_id}] Error while receiving keys before leave.")
 
     def DownloadFile(self, request, context):
         try:
@@ -338,7 +348,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
                     yield chord_pb2.DownloadFileResponse(buffer=chunk)
         except Exception as e:
             print(f"Error downloading file: {e}")
-            logger.warning(f"[Node ID: {self.node.node_id}] Error downloading file: {e}")
+            logger.warning(
+                f"[Node ID: {self.node.node_id}] Error downloading file: {e}")
             context.set_code(grpc.StatusCode.NOT_FOUND)
             context.set_details('File not found')
             return
@@ -359,7 +370,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
             return chord_pb2.UploadFileResponse(message=f"File uploaded successfully at node : {self.node.ip}:{self.node.port}")
         except Exception as e:
-            logger.error(f"[Node ID: {self.node.node_id}] Error uploading file: {e}")
+            logger.error(
+                f"[Node ID: {self.node.node_id}] Error uploading file: {e}")
             return chord_pb2.UploadFileResponse(message=f"Error uploading file: {e}")
 
     def Gossip(self, request, context):
@@ -369,7 +381,7 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
 
             if message_id in self.node.received_gossip_message_ids:
                 return chord_pb2.Empty()
-            
+
             self.node.received_gossip_message_ids.add(message_id)
             self.node.received_gossip_messages.append(message)
 
@@ -382,7 +394,8 @@ class ChordNodeServicer(chord_pb2_grpc.ChordServiceServicer):
             return chord_pb2.Empty()
 
         except Exception as e:
-            logger.error(f"[Node ID: {self.node.node_id}] Error while receiving gossip message.")
+            logger.error(
+                f"[Node ID: {self.node.node_id}] Error while receiving gossip message.")
 
 
 def start_server():
@@ -411,10 +424,13 @@ def start_server():
         # server.add_secure_port(f"[::]:{node_port}", ssl_credentials)
 
         server.start()
+        start_time = time.time()
         chord_node.join_chord_ring(bootstrap_node)
+        end_time = time.time()
 
         print(
             f"Peer started running at {node_ip_address}:{node_port} with ID: {node_id}", flush=True)
+        print("Time taken to join the ring:", end_time - start_time, flush=True)
         logger.info(
             f"[Node ID: {node_id}] Peer started running at {node_ip_address}:{node_port} with ID: {node_id}")
 
