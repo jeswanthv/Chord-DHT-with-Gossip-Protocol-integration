@@ -26,8 +26,6 @@ def perform_gossip(ip, port, message):
         response = stub.Gossip(gossip_request)
 
         print(f"Gossip performed successfully on node at {ip}:{port}")
-        print(response)
-
 
 def performance(chord_node):
     # Upload Latency
