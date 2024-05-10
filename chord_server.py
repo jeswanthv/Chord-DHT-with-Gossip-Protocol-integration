@@ -687,7 +687,7 @@ def start_server():
                     print(f"Successor: {chord_node.successor}")
                     print("Successor List:", chord_node.successor_list)
                 elif inp == "3":
-                    print(chord_node.predecessor)
+                    print(f"Predecessor: {chord_node.predecessor}")
                 elif inp == "4":
                     chord_node.show_store()
                     print("Received Gossip Messages:")

@@ -1,5 +1,4 @@
-
-# Distributed Computing Final Project: Basic File Sharing System
+# Distributed Computing Final Project: Distributed File Sharing System Using Chord
 
   
 
@@ -103,7 +102,16 @@ docker run -it --net chord-network --name node3 chord-node python chord_server.p
 
 For running the nodes on localhost:
 
-  
+options:
+  -h, --help            show this help message and exit
+  --ip IP               IP address of the node
+  --port PORT           Port number of the node
+  --m M                 Number of bits in the hash space
+  --bootstrap_ip BOOTSTRAP_IP
+                        IP address of the bootstrap node
+  --bootstrap_port BOOTSTRAP_PORT
+                        Port number of the bootstrap node
+  -i, --interactive     Interactive mode
 
 1. Start the first node:
 
@@ -174,7 +182,3 @@ python  client.py
   
 
 ```
-
-  
-
-This complete README is ready for integration into your project's repository, providing a full guide on how to build, run, and interact with your Chord DHT-based file sharing system.
