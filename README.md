@@ -182,6 +182,3 @@ python  client.py
    1. Sahil - PPT, Report, Join() ,FindSuccessor(), Gossip(), Docker Setup, Performance Testing
    2. Akash - PPT, Report, Replication(), UpdateFingerTable(), KeyHandling methods, FindPredecessor() 
    3. Suryakangeyan - PPT ,Report, ProtoFiles, FileTransfer methods, Resource Discovery (GetKey,SetKey)
-
-
-```
